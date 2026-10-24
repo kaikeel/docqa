@@ -20,12 +20,18 @@ tiếp quản được. Dự án này chứng minh Kaikeel làm RAG **đúng chu
 - Không có bằng chứng (retriever không trả về gì đủ điểm) → trả "không tìm thấy trong tài liệu", không gọi LLM.
 - CLI: `docqa ingest <dir>`, `docqa ask "<câu hỏi>"`, `docqa eval <file.jsonl>`.
 - API FastAPI: `POST /ingest`, `POST /ask`, `GET /health`.
+- **Chế độ chat nhiều lượt (thêm 2026-10-25, ADR 0007 — phủ nhóm job "chatbot hỗ trợ khách" 18%)**:
+  `POST /chat` stateless — client gửi lịch sử hội thoại `messages[{role, content}]` (giới hạn số lượt và độ dài),
+  server dùng câu hỏi mới nhất (kèm ngữ cảnh lượt trước để tìm kiếm câu hỏi nối tiếp) cho retriever, trả cùng
+  schema `{answer, citations, found}`. Không lưu phiên trên server.
+- **Widget chat mẫu**: một file HTML tĩnh tự chứa (không framework, không CDN) được phục vụ tại `GET /`, gọi
+  `POST /chat`, hiển thị trích dẫn dưới mỗi câu trả lời — minh hoạ cách nhúng vào website khách.
 - Eval: bộ câu hỏi mẫu trên tài liệu mẫu, đo retrieval hit@k (không cần API key) và tỉ lệ câu trả lời có trích dẫn.
 - Tài liệu mẫu nhỏ, tự viết, được phép công khai, trong `examples/docs/`.
 - Dockerfile, GitHub Actions CI (ruff, mypy, pytest + coverage), CHANGELOG, tag `v0.1.0`, license MIT.
 
 ## Ngoài phạm vi (Out of scope)
-- Giao diện web (chỉ CLI + API).
+- Giao diện web đầy đủ (chỉ CLI + API + một widget chat HTML tĩnh làm mẫu); lưu phiên chat phía server.
 - Vector DB / embeddings, đăng nhập người dùng, multi-tenant, OCR cho PDF scan.
 - Deploy production. (Demo chạy local hoặc Docker.)
 
@@ -37,6 +43,9 @@ tiếp quản được. Dự án này chứng minh Kaikeel làm RAG **đúng chu
 - [ ] AC5: Test chạy không cần mạng / API key (LLM giả qua interface); coverage logic ≥ 80%; ruff + mypy sạch.
 - [ ] AC6: README đưa người lạ từ máy sạch tới câu trả lời đầu tiên trong ≤ 10 phút (có cả lối Docker).
 - [ ] AC7: Không secret trong repo; key chỉ đọc từ biến môi trường; SECURITY_REPORT PASS.
+- [ ] AC8: `POST /chat` với câu hỏi nối tiếp ("còn cái kia thì sao?") tìm đúng tài liệu nhờ ngữ cảnh lượt trước;
+  lịch sử vượt giới hạn → 422; `GET /` trả widget chạy được, hiển thị nội dung từ API bằng `textContent` (không
+  `innerHTML` với dữ liệu trả về) (test).
 
 ## Milestone
 | # | Đầu ra | Giá ($) | Ngày giao | Trạng thái |
@@ -54,7 +63,15 @@ tiếp quản được. Dự án này chứng minh Kaikeel làm RAG **đúng chu
 - Giả định: `uv` local là 0.6.3 (2025-02); nếu không đọc được `uv.lock` do CI tạo bằng bản mới thì nâng uv local
   (`brew upgrade uv`) — việc trên máy CEO, cần CEO đồng ý.
 
-### Câu hỏi còn mở
+- (Claude, 2026-10-25, theo ADR 0005) **uv**: không nâng uv trên máy CEO; CI ghim `astral-sh/setup-uv` đúng bản
+  local `0.6.3` để `uv.lock` tương thích hai phía.
+
+### Quyết định cho câu hỏi đã mở (Claude, 2026-10-25, theo ADR 0005)
+- Q1 → Máy build không có `ANTHROPIC_API_KEY`. Agent dừng ở mức kiểm tự động (model giả). Bước chạy với API thật
+  (AC1, phần thời gian của AC6) chuyển thành mục **CEO tự chạy khi xem demo ở G3 nội bộ**, bằng key của CEO.
+- Q2 → Giữ nguyên scope và thêm chế độ chat (ADR 0007); chấp nhận vượt appetite về giờ công AI (không phải tiền).
+
+### Câu hỏi còn mở (lịch sử)
 - Q1 (AC1, AC6 — T13): Kiểm thủ công với API thật cần `ANTHROPIC_API_KEY`. Dùng key nào (key công ty của
   CEO?), ai chạy (eng-developer trong phiên có key, hay CEO tự chạy khi xem demo)? Chi phí dự kiến rất nhỏ
   (vài lời gọi), nhưng là thao tác liên quan tiền → cần CEO xác nhận.
