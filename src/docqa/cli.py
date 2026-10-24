@@ -47,7 +47,10 @@ def _service(db: Path | None) -> DocQAService:
         raise _fail(str(exc), 1) from None
     if db is not None:
         settings = replace(settings, db_path=db)
-    return DocQAService.from_settings(settings, model_factory=MODEL_FACTORY)
+    try:
+        return DocQAService.from_settings(settings, model_factory=MODEL_FACTORY)
+    except DocQAError as exc:
+        raise _fail(str(exc), 1) from None
 
 
 def answer_payload(answer: Answer) -> dict[str, object]:

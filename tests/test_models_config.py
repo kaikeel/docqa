@@ -21,7 +21,7 @@ ENV_VARS = [
     "DOCQA_EFFORT",
     "DOCQA_DB",
     "DOCQA_TOP_K",
-    "DOCQA_MIN_SCORE",
+    "DOCQA_MIN_COVERAGE",
     "DOCQA_INGEST_ROOT",
 ]
 
@@ -40,7 +40,7 @@ def test_defaults(clean_env: pytest.MonkeyPatch, tmp_path: Path) -> None:
     assert s.effort == "low"
     assert s.db_path == Path("./docqa.db")
     assert s.top_k == 5
-    assert s.min_score == config.DEFAULT_MIN_SCORE
+    assert s.min_coverage == config.DEFAULT_MIN_COVERAGE == 0.5
     assert s.ingest_root == tmp_path.resolve()
 
 
@@ -49,10 +49,10 @@ def test_overrides(clean_env: pytest.MonkeyPatch, tmp_path: Path) -> None:
     clean_env.setenv("DOCQA_EFFORT", "high")
     clean_env.setenv("DOCQA_DB", str(tmp_path / "x.db"))
     clean_env.setenv("DOCQA_TOP_K", "7")
-    clean_env.setenv("DOCQA_MIN_SCORE", "2.5")
+    clean_env.setenv("DOCQA_MIN_COVERAGE", "0.25")
     clean_env.setenv("DOCQA_INGEST_ROOT", str(tmp_path))
     s = Settings.from_env()
-    assert (s.model, s.effort, s.top_k, s.min_score) == ("claude-other", "high", 7, 2.5)
+    assert (s.model, s.effort, s.top_k, s.min_coverage) == ("claude-other", "high", 7, 0.25)
     assert s.db_path == tmp_path / "x.db"
     assert s.ingest_root == tmp_path.resolve()
 
@@ -62,7 +62,11 @@ def test_overrides(clean_env: pytest.MonkeyPatch, tmp_path: Path) -> None:
     [
         ("DOCQA_TOP_K", "abc"),
         ("DOCQA_TOP_K", "0"),
-        ("DOCQA_MIN_SCORE", "nope"),
+        ("DOCQA_MIN_COVERAGE", "nope"),
+        ("DOCQA_MIN_COVERAGE", "nan"),
+        ("DOCQA_MIN_COVERAGE", "inf"),
+        ("DOCQA_MIN_COVERAGE", "-0.1"),
+        ("DOCQA_MIN_COVERAGE", "1.5"),
         ("DOCQA_EFFORT", "turbo"),
     ],
 )

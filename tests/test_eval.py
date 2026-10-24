@@ -4,19 +4,20 @@ import pytest
 from typer.testing import CliRunner
 
 from docqa import cli
-from docqa.config import DEFAULT_MIN_SCORE
+from docqa.config import DEFAULT_MIN_COVERAGE
 from docqa.errors import DocQAError
 from docqa.eval import EvalCase, load_cases, run_full_eval, run_retrieval_eval
 from docqa.llm import FakeAnswerModel
 from tests.helpers import ROOT, SAMPLE_DOCS, make_service
 
 EVAL_FILE = ROOT / "examples" / "eval.jsonl"
+HOLDOUT_FILE = ROOT / "examples" / "eval_holdout.jsonl"
 runner = CliRunner()
 
 
 def test_load_cases_reads_sample_file() -> None:
     cases = load_cases(EVAL_FILE)
-    assert len(cases) == 22
+    assert len(cases) == 39
     assert cases[0] == EvalCase(
         question="How long is the warranty on a fixed-price project?",
         expected_sources=("warranty-policy.md",),
@@ -52,22 +53,41 @@ def test_load_cases_missing_or_empty_file(tmp_path: Path) -> None:
         load_cases(empty)
 
 
-def test_sample_hit_at_3(tmp_path: Path) -> None:
+@pytest.mark.parametrize("path", [EVAL_FILE, HOLDOUT_FILE], ids=["dev", "holdout"])
+def test_retrieval_targets_on_dev_and_holdout(tmp_path: Path, path: Path) -> None:
+    # Targets from the QA fix round (ADR 0007): hit@3 >= 0.8 and >= 90% of unanswerable
+    # questions rejected, on the dev set used for calibration and on the untouched holdout.
     service, factory = make_service(tmp_path)
-    assert service.settings.min_score == DEFAULT_MIN_SCORE
-    report = run_retrieval_eval(service.retriever, load_cases(EVAL_FILE), k=3)
-    assert report.answerable == 18
+    assert service.settings.min_coverage == DEFAULT_MIN_COVERAGE
+    report = run_retrieval_eval(service.retriever, load_cases(path), k=3)
     assert report.hit_rate >= 0.8
-    assert report.unanswerable == 4
-    assert report.unanswerable_rejected == 4  # every unanswerable question -> not found
+    assert report.unanswerable >= 5
+    assert report.unanswerable_rejected / report.unanswerable >= 0.9
     assert factory.calls == 0
+
+
+@pytest.mark.parametrize(
+    ("question", "source"),
+    [
+        ("What is the warranty?", "warranty-policy.md"),
+        ("What support plans do you have?", "support-plan-starter.md"),
+        ("What is a change request?", "estimates-and-change-requests.md"),
+        ("How do you estimate?", "estimates-and-change-requests.md"),
+        ("gitleaks", "security-checklist.txt"),
+    ],
+)
+def test_short_natural_questions_pass_the_gate(tmp_path: Path, question: str, source: str) -> None:
+    service, _ = make_service(tmp_path)
+    answer = service.ask(question)
+    assert answer.found is True
+    assert answer.citations[0].source == source
 
 
 def test_unanswerable_questions_are_not_found_by_service(tmp_path: Path) -> None:
     service, factory = make_service(tmp_path)
     for case in load_cases(EVAL_FILE):
         if not case.answerable:
-            assert service.ask(case.question).found is False
+            assert service.ask(case.question).found is False, case.question
     assert factory.calls == 0
 
 
@@ -84,9 +104,9 @@ def test_cli_eval_retrieval_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert runner.invoke(cli.app, ["ingest", str(SAMPLE_DOCS)]).exit_code == 0
     result = runner.invoke(cli.app, ["eval", str(EVAL_FILE), "--retrieval-only", "--k", "3"])
     assert result.exit_code == 0, result.output
-    assert "hit@3: 0.94" in result.output
-    assert "(17/18 answerable)" in result.output
-    assert "unanswerable rejected: 4/4" in result.output
+    assert "cases: 39" in result.output
+    assert "hit@3: 0.968 (30/31 answerable)" in result.output
+    assert "unanswerable rejected: 8/8" in result.output
     assert "citation_rate" not in result.output
 
 

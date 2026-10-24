@@ -20,3 +20,20 @@
 {"question": "Which cafeteria serves vegetarian lunch?", "expected_sources": [], "answerable": false}
 {"question": "What is the stock ticker symbol?", "expected_sources": [], "answerable": false}
 {"question": "How many vacation days do employees get per year?", "expected_sources": [], "answerable": false}
+{"question": "What is the warranty?", "expected_sources": ["warranty-policy.md"], "answerable": true}
+{"question": "Tell me about the warranty", "expected_sources": ["warranty-policy.md"], "answerable": true}
+{"question": "What is the warranty policy?", "expected_sources": ["warranty-policy.md"], "answerable": true}
+{"question": "What support plans do you have?", "expected_sources": ["support-plan-starter.md", "support-plan-pro.txt"], "answerable": true}
+{"question": "What is the release process?", "expected_sources": ["release-checklist.pdf"], "answerable": true}
+{"question": "How do you handle incidents?", "expected_sources": ["incident-response.md"], "answerable": true}
+{"question": "What is in the security checklist?", "expected_sources": ["security-checklist.txt"], "answerable": true}
+{"question": "What is a change request?", "expected_sources": ["estimates-and-change-requests.md"], "answerable": true}
+{"question": "How do you estimate?", "expected_sources": ["estimates-and-change-requests.md"], "answerable": true}
+{"question": "What is the delivery process?", "expected_sources": ["delivery-process.md"], "answerable": true}
+{"question": "What are the coding standards?", "expected_sources": ["coding-standards.md"], "answerable": true}
+{"question": "gitleaks", "expected_sources": ["security-checklist.txt"], "answerable": true}
+{"question": "SEV1", "expected_sources": ["incident-response.md", "support-plan-pro.txt"], "answerable": true}
+{"question": "Do you offer a free trial?", "expected_sources": [], "answerable": false}
+{"question": "What is the price of a domain name?", "expected_sources": [], "answerable": false}
+{"question": "Which cloud provider do you use?", "expected_sources": [], "answerable": false}
+{"question": "How do I apply for a job?", "expected_sources": [], "answerable": false}

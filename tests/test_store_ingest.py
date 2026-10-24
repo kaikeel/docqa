@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from docqa.errors import IngestError
+from docqa.errors import DocQAError, IngestError
 from docqa.ingest import ingest_dir
-from docqa.store import NewChunk, Store
+from docqa.store import SCHEMA_VERSION, NewChunk, Store
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -141,7 +141,7 @@ def test_concurrent_search_and_ingest_are_safe(store: Store, tmp_path: Path) -> 
 
     root = tmp_path / "docs"
     make_corpus(root)
-    retriever = FTS5Retriever(store, min_score=0.0)
+    retriever = FTS5Retriever(store, min_coverage=0.0)
 
     def work(i: int) -> None:
         for _ in range(30):
@@ -154,3 +154,25 @@ def test_concurrent_search_and_ingest_are_safe(store: Store, tmp_path: Path) -> 
         list(pool.map(work, range(6)))
     assert store.document_count() == 3
     assert hasattr(store, "lock")
+
+
+def test_new_database_records_schema_version(tmp_path: Path) -> None:
+    with Store(tmp_path / "v.db") as store:
+        assert store.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+    with Store(tmp_path / "v.db") as store:  # reopening a current database works
+        assert store.document_count() == 0
+
+
+def test_porter_tokenizer_is_used(store: Store) -> None:
+    sql = store.conn.execute("SELECT sql FROM sqlite_master WHERE name = 'chunks_fts'").fetchone()
+    assert "porter unicode61 remove_diacritics 2" in sql[0]
+
+
+def test_database_from_an_older_version_fails_clearly(tmp_path: Path) -> None:
+    path = tmp_path / "old.db"
+    conn = sqlite3.connect(path)
+    conn.execute("CREATE TABLE documents (id INTEGER PRIMARY KEY, source TEXT)")
+    conn.commit()
+    conn.close()
+    with pytest.raises(DocQAError, match=r"delete .*old\.db.* and ingest again"):
+        Store(path)

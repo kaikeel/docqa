@@ -120,3 +120,16 @@ def test_bad_env_config_exits_1(db: Path, monkeypatch: pytest.MonkeyPatch) -> No
     result = runner.invoke(cli.app, ["ask", "warranty"])
     assert result.exit_code == 1
     assert "DOCQA_TOP_K" in result.stderr
+
+
+def test_index_from_older_version_exits_1_with_hint(db: Path) -> None:
+    import sqlite3
+
+    conn = sqlite3.connect(db)
+    conn.execute("CREATE TABLE documents (id INTEGER PRIMARY KEY)")
+    conn.commit()
+    conn.close()
+    result = runner.invoke(cli.app, ["ask", "What is the warranty?"])
+    assert result.exit_code == 1
+    assert "ingest again" in result.stderr
+    assert "Traceback" not in result.output

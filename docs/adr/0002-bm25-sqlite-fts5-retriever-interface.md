@@ -1,6 +1,6 @@
 # 2. BM25 with SQLite FTS5 behind a `Retriever` interface (no vector DB in v0.1)
 
-Date: 2026-10-25 · Status: Accepted · Author: sol-architect
+Date: 2026-10-25 · Status: Accepted (threshold and calibration superseded by ADR 0007) · Author: sol-architect
 
 ## Context
 DocQA v0.1 is an internal portfolio project with an appetite of at most one AI work-day. AC4 requires a
@@ -13,12 +13,13 @@ DB / embeddings as out of scope.
 AC2 also needs a deterministic "no evidence" signal so we can answer "not found" without calling the LLM.
 
 ## Decision
-- Store chunks in a single SQLite file with an external-content FTS5 table (`unicode61 remove_diacritics 2`).
+- Store chunks in a single SQLite file with an external-content FTS5 table (`unicode61 remove_diacritics 2`;
+  `porter` stemming added by ADR 0007).
 - Rank with FTS5 `bm25()`; expose `score = -bm25()` (higher is better).
 - Sanitize user queries into quoted tokens joined by `OR` (stopwords removed) so FTS5 operators in user input
   cannot cause syntax errors or change query semantics.
-- Apply a configurable score threshold (`DOCQA_MIN_SCORE`, calibrated on `examples/eval.jsonl`). Nothing above
-  the threshold → `found=false`, LLM is not called.
+- Apply a configurable evidence threshold. Nothing above the threshold → `found=false`, LLM is not called.
+  (Originally a raw BM25 score, `DOCQA_MIN_SCORE`; replaced by query coverage, `DOCQA_MIN_COVERAGE`, in ADR 0007.)
 - Define `Retriever` as a `typing.Protocol` with `search(query: str, k: int) -> list[Chunk]`. `DocQAService`
   depends only on the protocol; `FTS5Retriever` is the only implementation in v0.1.
 
@@ -31,30 +32,14 @@ AC2 also needs a deterministic "no evidence" signal so we can answer "not found"
 - A future `VectorRetriever` or hybrid retriever (e.g. pgvector, on the Adopt ring) can be added without changing
   the service, API or CLI — only the wiring in the factory.
 
-## Calibration (BUILD T11, 2026-10-25, eng-developer)
+## Calibration (BUILD T11, 2026-10-25, eng-developer) — superseded by ADR 0007
 
-**Threshold semantics.** `DOCQA_MIN_SCORE` is applied as an *evidence gate on the best match*: if the
-top-ranked chunk scores below it, retrieval returns nothing (not found, no LLM call); otherwise the whole
-top-k is returned, including weaker chunks. A per-chunk filter (the wording in the original SPEC) cannot
-satisfy AC4 and AC8 at the same time on the sample set: the follow-up "And what about the other one?" needs
-the Pro plan chunk (score 2.49) next to the Starter chunk (6.93), while the strongest unanswerable question
-("How many vacation days do employees get per year?") scores 2.67. With the gate, weaker chunks only add
-context; `found` still requires a citation from Claude.
+Kept for history. The gate became an *evidence gate on the best match* (top-1 below the threshold → nothing;
+otherwise the whole top-k), which ADR 0007 keeps. The threshold itself was `DOCQA_MIN_SCORE = 3.0` on the raw
+BM25 score, tuned on the 22 questions of `examples/eval.jsonl` (hit@3 0.944, 4/4 unanswerable rejected).
 
-**Value: `DOCQA_MIN_SCORE = 3.0`** (default in `config.py`). Method: ingest `examples/docs`, run every
-`examples/eval.jsonl` question with no threshold, record the top score per question
-(`docqa eval ... --retrieval-only --k 3` with `DOCQA_MIN_SCORE` overridden), then sweep:
-
-| `DOCQA_MIN_SCORE` | hit@3 (18 answerable) | unanswerable rejected (4) |
-|---|---|---|
-| 2.5 | 1.000 | 3/4 |
-| 2.7 | 1.000 | 4/4 |
-| 3.0 (chosen) | 0.944 | 4/4 |
-| 3.5 / 4.0 / 4.5 | 0.944 | 4/4 |
-
-2.7 is the only value with 18/18, but it sits 0.03 above the strongest unanswerable question, so it
-overfits the sample. Every value in (2.81, 4.52] gives the same result; 3.0 is near the low end so short
-but valid questions still pass. The one miss is "Which licences are allowed for dependencies?": the sample
-says "licence", and FTS5 does not stem plurals, so the right file scores only 1.97 (a documented BM25
-limitation). Scores depend on corpus size and vocabulary; users should re-run this sweep on their own
-documents.
+**Correction (QA fix round 1):** this section originally said "3.0 is near the low end so short but valid
+questions still pass". That was wrong: QA showed most short natural questions score below 3.0 even when the
+right file ranks first ("What is the warranty?" 1.45, "What is a change request?" 2.95), and the numbers were
+measured on the same questions used for tuning. ADR 0007 replaces the raw score with IDF-weighted query
+coverage, calibrated on a dev set and checked on a separate holdout set.

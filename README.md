@@ -124,7 +124,7 @@ All settings are environment variables (see `.env.example`). DocQA does not load
 | `DOCQA_EFFORT` | `low` | Effort level sent to the API: `low`, `medium`, `high`, `xhigh` or `max`. |
 | `DOCQA_DB` | `./docqa.db` | SQLite index file. |
 | `DOCQA_TOP_K` | `5` | Passages sent to Claude per question. |
-| `DOCQA_MIN_SCORE` | `3.0` | Minimum BM25 score of the best passage to count as evidence (see below). |
+| `DOCQA_MIN_COVERAGE` | `0.5` | Share of the question (0 to 1, rare words weigh more) that the best passage must contain to count as evidence (see below). |
 | `DOCQA_INGEST_ROOT` | current directory | `POST /ingest` only accepts folders inside this directory. |
 | `DOCQA_CHAT_MAX_MESSAGES` | `20` | Maximum messages per `/chat` request. |
 | `DOCQA_CHAT_MAX_CHARS` | `2000` | Maximum characters per `/chat` message. |
@@ -134,33 +134,41 @@ All settings are environment variables (see `.env.example`). DocQA does not load
 1. **Ingest.** Files are split into overlapping passages of up to 800 characters (150 overlap, cut at
    whitespace; PDFs page by page) and stored in SQLite with an FTS5 full-text index. Re-ingesting skips files
    whose content hash has not changed and replaces the passages of files that have.
-2. **Retrieve.** The question is reduced to its content words (stopwords and FTS5 operators removed) and ranked
-   with BM25. If even the best passage scores below `DOCQA_MIN_SCORE`, the answer is "Not found in the provided
-   documents." and Claude is not called at all.
+2. **Retrieve.** The question is reduced to its content words (stopwords and FTS5 operators removed, English
+   word forms stemmed so "plans" matches "plan") and ranked with BM25. Then an evidence gate checks how much of
+   the question the best passage covers: the share of the question's words found in it, each weighted by how
+   rare it is in your documents (a word that appears nowhere weighs the most). Below `DOCQA_MIN_COVERAGE` the
+   answer is "Not found in the provided documents." and Claude is not called at all.
 3. **Answer.** Each passage is sent to Claude as a document block with citations enabled. The API returns the
    answer with the exact quoted text and the document it came from; DocQA maps that back to the file name. It
    does not ask the model to write citations itself, so quotes are verbatim.
 4. **Found.** An answer counts as found only if it carries at least one citation. If Claude says the documents
    do not cover the question and cites nothing, `found` is `false`.
 
-`DOCQA_MIN_SCORE = 3.0` was calibrated on the sample set: with it, every unanswerable sample question is
-rejected by retrieval (the strongest scores 2.67) and 17 of 18 answerable questions find the right file in the
-top 3. The method and the full sweep are in `docs/adr/0002-bm25-sqlite-fts5-retriever-interface.md`. BM25
-scores depend on the corpus, so re-run the evaluation on your own documents and adjust the value.
+`DOCQA_MIN_COVERAGE = 0.5` was calibrated on the dev set `examples/eval.jsonl` only, and checked on a separate
+holdout set, `examples/eval_holdout.jsonl`, that was written before calibration and not used to tune anything.
+Short questions such as "What is the warranty?" pass (the warranty passage covers the whole question), while
+"What is the warranty on hardware?" does not ("hardware" is nowhere in the documents). The method, the
+alternatives and the misses are in `docs/adr/0007-evidence-gate-query-coverage.md`. The gate is a heuristic
+tuned on one small corpus: run the evaluation on your own questions and adjust the value.
 
 ## Evaluation
 
 ```bash
 uv run docqa ingest examples/docs
-uv run docqa eval examples/eval.jsonl --retrieval-only --k 3     # no API key needed
+uv run docqa eval examples/eval.jsonl --retrieval-only --k 3           # dev set, no API key needed
+uv run docqa eval examples/eval_holdout.jsonl --retrieval-only --k 3   # holdout set
 ```
 
-Output on the sample set:
+Output on the sample documents:
 
 ```
-cases: 22
-hit@3: 0.944 (17/18 answerable)
-unanswerable rejected: 4/4 (retrieval found nothing)
+cases: 39
+hit@3: 0.968 (30/31 answerable)
+unanswerable rejected: 8/8 (retrieval found nothing)
+cases: 35
+hit@3: 0.833 (20/24 answerable)
+unanswerable rejected: 11/11 (retrieval found nothing)
 ```
 
 `hit@k` is the share of answerable questions with at least one passage from an expected file in the top k.
@@ -182,14 +190,16 @@ removes `ANTHROPIC_API_KEY` and blocks network connections for the whole run.
 ## Known limitations
 
 - **Lexical search.** BM25 matches words, not meaning. Synonyms and different word forms are missed: the sample
-  question "Which licences are allowed for dependencies?" does not reach `coding-standards.md`, which says
-  "licence". The `Retriever` interface allows a vector or hybrid retriever to be added later without changing
+  questions "What linter do you use?" (the document says "linted with ruff") and "How do I report a bug?" (the
+  document says "defect") miss the right file. English plurals and verb forms are handled by stemming. The `Retriever` interface allows a vector or hybrid retriever to be added later without changing
   the API.
 - **Follow-up questions.** A follow-up is combined with the previous user question only when it contains a
   reference word ("it", "that", "other", "one", ...). A follow-up without one that still matches something on
   its own, such as "And the price?", is searched as a standalone question and may pick up the wrong item.
   Assistant answers are not used for retrieval. Reference words are English only.
-- **Threshold is corpus-specific.** See `DOCQA_MIN_SCORE` above.
+- **The evidence gate is a heuristic.** It was tuned on the sample corpus; see `DOCQA_MIN_COVERAGE` above. A
+  question that reuses the documents' words except for one rare word is the hardest case ("What is the price of
+  the Enterprise plan?" is rejected, but only just).
 - **Index maintenance.** Files deleted from a folder are not removed from the index in v0.1; delete the
   database file and ingest again.
 - **PDFs.** Only PDFs with a text layer are supported; scanned PDFs are skipped (no OCR).

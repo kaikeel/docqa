@@ -9,6 +9,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from types import TracebackType
 
+from docqa.errors import DocQAError
+
+# Bumped whenever SCHEMA changes incompatibly (stored in PRAGMA user_version).
+# 2: porter stemming in the FTS5 tokenizer (ADR 0007).
+SCHEMA_VERSION = 2
+
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 
@@ -32,7 +38,7 @@ CREATE TABLE IF NOT EXISTS chunks (
 
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
     text, content='chunks', content_rowid='id',
-    tokenize='unicode61 remove_diacritics 2'
+    tokenize='porter unicode61 remove_diacritics 2'
 );
 
 CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON chunks BEGIN
@@ -67,7 +73,23 @@ class Store:
         self.conn = sqlite3.connect(str(path), check_same_thread=False)
         self.lock = threading.RLock()
         self.conn.row_factory = sqlite3.Row
+        self._check_version()
         self.conn.executescript(SCHEMA)
+        self.conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
+    def _check_version(self) -> None:
+        """Refuse an index written by another schema version instead of misreading it."""
+        version = self.conn.execute("PRAGMA user_version").fetchone()[0]
+        has_tables = self.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'documents'"
+        ).fetchone()
+        if has_tables and version != SCHEMA_VERSION:
+            self.conn.close()
+            raise DocQAError(
+                f"The index {self.path} was created by another DocQA version "
+                f"(schema {version}, expected {SCHEMA_VERSION}); delete {self.path} and "
+                "ingest again."
+            )
 
     def __enter__(self) -> Store:
         return self
