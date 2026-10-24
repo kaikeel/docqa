@@ -11,6 +11,7 @@ import typer
 
 from docqa.config import Settings
 from docqa.errors import AnswerError, DocQAError, IngestError
+from docqa.eval import load_cases, run_full_eval, run_retrieval_eval
 from docqa.models import Answer
 from docqa.service import DocQAService, ModelFactory
 
@@ -97,3 +98,38 @@ def ask(
     for number, citation in enumerate(answer.citations, start=1):
         quote = " ".join(citation.quote.split())
         typer.echo(f'[{number}] {citation.source} — "{quote}"')
+
+
+@app.command(name="eval")
+def evaluate(
+    file: Annotated[Path, typer.Argument(help="JSONL file with question/expected_sources.")],
+    retrieval_only: Annotated[
+        bool, typer.Option("--retrieval-only", help="Only measure retrieval (no API key).")
+    ] = False,
+    k: Annotated[int, typer.Option("--k", min=1, max=20, help="Top-k for hit@k.")] = 3,
+    db: DbOption = None,
+) -> None:
+    """Measure hit@k on an eval set; without --retrieval-only also check real answers."""
+    service = _service(db)
+    try:
+        cases = load_cases(file)
+    except DocQAError as exc:
+        raise _fail(str(exc), 1) from None
+    try:
+        report = (
+            run_retrieval_eval(service.retriever, cases, k)
+            if retrieval_only
+            else run_full_eval(service, cases, k)
+        )
+    except AnswerError as exc:
+        raise _fail(str(exc), 2) from None
+    typer.echo(f"cases: {len(cases)}")
+    typer.echo(f"hit@{k}: {report.hit_rate:.3f} ({report.hits}/{report.answerable} answerable)")
+    typer.echo(
+        f"unanswerable rejected: {report.unanswerable_rejected}/{report.unanswerable} "
+        "(retrieval found nothing)"
+    )
+    if report.citation_rate is not None:
+        typer.echo(f"citation_rate: {report.citation_rate:.2f}")
+    if report.not_found_accuracy is not None:
+        typer.echo(f"not_found_accuracy: {report.not_found_accuracy:.2f}")

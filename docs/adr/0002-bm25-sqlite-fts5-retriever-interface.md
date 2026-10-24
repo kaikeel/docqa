@@ -30,3 +30,31 @@ AC2 also needs a deterministic "no evidence" signal so we can answer "not found"
   default is tuned on the sample set; users with their own corpus may need to adjust `DOCQA_MIN_SCORE`.
 - A future `VectorRetriever` or hybrid retriever (e.g. pgvector, on the Adopt ring) can be added without changing
   the service, API or CLI — only the wiring in the factory.
+
+## Calibration (BUILD T11, 2026-10-25, eng-developer)
+
+**Threshold semantics.** `DOCQA_MIN_SCORE` is applied as an *evidence gate on the best match*: if the
+top-ranked chunk scores below it, retrieval returns nothing (not found, no LLM call); otherwise the whole
+top-k is returned, including weaker chunks. A per-chunk filter (the wording in the original SPEC) cannot
+satisfy AC4 and AC8 at the same time on the sample set: the follow-up "And what about the other one?" needs
+the Pro plan chunk (score 2.49) next to the Starter chunk (6.93), while the strongest unanswerable question
+("How many vacation days do employees get per year?") scores 2.67. With the gate, weaker chunks only add
+context; `found` still requires a citation from Claude.
+
+**Value: `DOCQA_MIN_SCORE = 3.0`** (default in `config.py`). Method: ingest `examples/docs`, run every
+`examples/eval.jsonl` question with no threshold, record the top score per question
+(`docqa eval ... --retrieval-only --k 3` with `DOCQA_MIN_SCORE` overridden), then sweep:
+
+| `DOCQA_MIN_SCORE` | hit@3 (18 answerable) | unanswerable rejected (4) |
+|---|---|---|
+| 2.5 | 1.000 | 3/4 |
+| 2.7 | 1.000 | 4/4 |
+| 3.0 (chosen) | 0.944 | 4/4 |
+| 3.5 / 4.0 / 4.5 | 0.944 | 4/4 |
+
+2.7 is the only value with 18/18, but it sits 0.03 above the strongest unanswerable question, so it
+overfits the sample. Every value in (2.81, 4.52] gives the same result; 3.0 is near the low end so short
+but valid questions still pass. The one miss is "Which licences are allowed for dependencies?": the sample
+says "licence", and FTS5 does not stem plurals, so the right file scores only 1.97 (a documented BM25
+limitation). Scores depend on corpus size and vocabulary; users should re-run this sweep on their own
+documents.

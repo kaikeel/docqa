@@ -40,7 +40,7 @@ def test_k_limits_chunks_sent_to_model(tmp_path: Path) -> None:
 
 def test_model_is_created_once(tmp_path: Path) -> None:
     service, factory = make_service(tmp_path)
-    service.ask("warranty")
+    service.ask("How quickly are critical defects fixed?")
     service.ask("rollback drill")
     assert factory.calls == 1
 
@@ -56,7 +56,7 @@ def test_found_requires_citations(tmp_path: Path) -> None:
 
     service, _ = make_service(tmp_path)
     service.model_factory = SilentModel
-    answer = service.ask("warranty")
+    answer = service.ask("How quickly are critical defects fixed?")
     assert (answer.text, answer.found) == ("Not mentioned.", False)
 
 
