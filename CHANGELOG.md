@@ -20,3 +20,4 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 - CLI commands `docqa ingest` and `docqa ask` (`--k`, `--db`, `--json`) with documented exit codes (T9).
 - HTTP API: `GET /health`, `POST /ingest` (restricted to `DOCQA_INGEST_ROOT`) and `POST /ask` with 429/502 error mapping (T10).
 - Stateless `POST /chat` endpoint with the same response schema as `/ask` and 422 `chat_history_invalid` for invalid histories (T17).
+- Sample chat widget at `GET /` (single HTML file, `textContent` only) served with a hash-based Content-Security-Policy (T18).

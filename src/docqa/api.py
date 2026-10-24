@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import re
 from functools import lru_cache
+from importlib.resources import files
 from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from docqa import __version__
@@ -20,6 +25,27 @@ app = FastAPI(
     version=__version__,
     description="Answers questions from your documents, with verifiable citations.",
 )
+
+
+def _inline_hash(html: str, tag: str) -> str:
+    match = re.search(rf"<{tag}>(.*?)</{tag}>", html, re.DOTALL)
+    if match is None:
+        raise RuntimeError(f"widget has no inline <{tag}>")
+    digest = hashlib.sha256(match.group(1).encode("utf-8")).digest()
+    return "'sha256-" + base64.b64encode(digest).decode("ascii") + "'"
+
+
+# Read once at import; hashes are derived from the file, so editing it never breaks the CSP.
+WIDGET_HTML = files("docqa").joinpath("static/index.html").read_text("utf-8")
+WIDGET_HEADERS = {
+    "Content-Security-Policy": (
+        f"default-src 'none'; script-src {_inline_hash(WIDGET_HTML, 'script')}; "
+        f"style-src {_inline_hash(WIDGET_HTML, 'style')}; connect-src 'self'; img-src 'self'; "
+        "base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+}
 
 
 class IngestRequest(BaseModel):
@@ -89,6 +115,12 @@ def _error(status: int, code: str, message: str) -> HTTPException:
 def _llm_error(exc: AnswerError) -> HTTPException:
     status = 429 if isinstance(exc, LLMRateLimitError) else 502
     return _error(status, exc.code, str(exc))
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def widget() -> HTMLResponse:
+    """Sample chat widget (ADR 0006): same origin as the API, data rendered via textContent."""
+    return HTMLResponse(WIDGET_HTML, headers=WIDGET_HEADERS)
 
 
 @app.get("/health")
