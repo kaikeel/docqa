@@ -1,0 +1,21 @@
+Kaikeel Handbook Lite: Pro Support Plan
+(Fictional sample document for the DocQA demo. Prices are invented for illustration.)
+
+The Pro plan is a monthly support plan for business-critical projects after the warranty
+period ends.
+
+WHAT THE PRO PLAN INCLUDES
+- Up to 12 hours of maintenance and small feature work per month.
+- Weekly dependency and security updates for up to three repositories.
+- Priority support by email and chat with a response within four business hours.
+- Uptime monitoring with alerts, and a SEV1 first response within 30 minutes.
+- A monthly 30-minute review call and written report.
+
+Unused hours roll over for one month, up to a maximum of 6 hours.
+
+PRICE
+The Pro plan costs USD 690 per month, billed monthly in advance, with a minimum term of
+three months.
+
+WHO IT IS FOR
+Online shops, customer-facing APIs and AI assistants where downtime directly costs money.

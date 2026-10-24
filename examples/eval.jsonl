@@ -1,0 +1,22 @@
+{"question": "How long is the warranty on a fixed-price project?", "expected_sources": ["warranty-policy.md"], "answerable": true}
+{"question": "Are outages of a hosted model API covered by the warranty?", "expected_sources": ["warranty-policy.md"], "answerable": true}
+{"question": "How quickly are critical defects fixed?", "expected_sources": ["warranty-policy.md"], "answerable": true}
+{"question": "What items are included in the handover package?", "expected_sources": ["delivery-process.md"], "answerable": true}
+{"question": "How long does the handover meeting last?", "expected_sources": ["delivery-process.md"], "answerable": true}
+{"question": "What minimum test coverage does the CI pipeline enforce?", "expected_sources": ["coding-standards.md"], "answerable": true}
+{"question": "Which licences are allowed for dependencies?", "expected_sources": ["coding-standards.md"], "answerable": true}
+{"question": "Should gitleaks scan the entire git history?", "expected_sources": ["security-checklist.txt"], "answerable": true}
+{"question": "What should happen if an API key was committed to the repository?", "expected_sources": ["security-checklist.txt"], "answerable": true}
+{"question": "What is the first response time for a SEV1 incident?", "expected_sources": ["incident-response.md"], "answerable": true}
+{"question": "When is a blameless postmortem written?", "expected_sources": ["incident-response.md"], "answerable": true}
+{"question": "How much buffer is added to task estimates?", "expected_sources": ["estimates-and-change-requests.md"], "answerable": true}
+{"question": "What is the process for a change request?", "expected_sources": ["estimates-and-change-requests.md"], "answerable": true}
+{"question": "How often do active projects receive a status update?", "expected_sources": ["communication-guidelines.txt"], "answerable": true}
+{"question": "How is the git tag for a release created?", "expected_sources": ["release-checklist.pdf"], "answerable": true}
+{"question": "How often is a rollback drill rehearsed?", "expected_sources": ["release-checklist.pdf"], "answerable": true}
+{"question": "What is the monthly price of the Starter support plan?", "expected_sources": ["support-plan-starter.md"], "answerable": true}
+{"question": "How many maintenance hours per month does the Pro plan include?", "expected_sources": ["support-plan-pro.txt"], "answerable": true}
+{"question": "What is the parental leave allowance?", "expected_sources": [], "answerable": false}
+{"question": "Which cafeteria serves vegetarian lunch?", "expected_sources": [], "answerable": false}
+{"question": "What is the stock ticker symbol?", "expected_sources": [], "answerable": false}
+{"question": "How many vacation days do employees get per year?", "expected_sources": [], "answerable": false}

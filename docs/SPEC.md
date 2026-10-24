@@ -388,10 +388,12 @@ Client tự giữ lịch sử và gửi lại câu trả lời assistant dạng 
 
 Mỗi dòng: `{"question": str, "expected_sources": [str], "answerable": bool}`.
 `hit@k` = tỉ lệ case `answerable=true` có ít nhất một chunk trong top-k với `source ∈ expected_sources`.
-Bộ mẫu: ≥ 10 câu answerable + ≥ 3 câu unanswerable, viết trên `examples/docs/` (3–5 file tự viết, công khai
-được, chủ đề hư cấu "Kaikeel handbook" — có ít nhất một `.md` và một `.txt`). PDF được phủ bằng fixture nhỏ
-trong `tests/fixtures/`. Tài liệu mẫu phải có **ít nhất hai mục cùng loại nằm ở hai file khác nhau** (vd hai
-gói dịch vụ) để dựng kịch bản câu nối tiếp cho AC8.
+Bộ mẫu: ≥ 10 câu answerable + ≥ 3 câu unanswerable (thực tế 18 + 4), viết trên `examples/docs/` (10 file tự
+viết, công khai được, chủ đề hư cấu "Kaikeel Handbook Lite": 6 `.md`, 3 `.txt`, 1 `.pdf` 2 trang sinh bằng
+`scripts/make_sample_pdf.py`). PDF còn được phủ bằng fixture nhỏ trong `tests/fixtures/`. Tài liệu mẫu có **hai
+mục cùng loại nằm ở hai file khác nhau**: gói hỗ trợ Starter (`support-plan-starter.md`) và Pro
+(`support-plan-pro.txt`) để dựng kịch bản câu nối tiếp cho AC8.
+(BUILD T5: tăng từ 3–5 lên 10 file theo chỉ đạo khi giao BUILD — 6–10 file gồm 1 PDF — để eval có ý nghĩa hơn.)
 
 ## Kế hoạch test (map với tiêu chí nghiệm thu)
 
