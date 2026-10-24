@@ -13,14 +13,16 @@ from docqa.errors import DocQAError
 
 # Bumped whenever SCHEMA changes incompatibly (stored in PRAGMA user_version).
 # 2: porter stemming in the FTS5 tokenizer (ADR 0007).
-SCHEMA_VERSION = 2
+# 3: documents keyed by the file's resolved path, so equal relative names do not collide.
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS documents (
     id          INTEGER PRIMARY KEY,
-    source      TEXT NOT NULL UNIQUE,
+    path        TEXT NOT NULL UNIQUE,  -- resolved file path: the identity of a document
+    source      TEXT NOT NULL,         -- path relative to the ingested folder, shown in citations
     sha256      TEXT NOT NULL,
     ingested_at TEXT NOT NULL
 );
@@ -105,24 +107,31 @@ class Store:
     def close(self) -> None:
         self.conn.close()
 
-    def document_sha(self, source: str) -> str | None:
-        row = self.conn.execute(
-            "SELECT sha256 FROM documents WHERE source = ?", (source,)
-        ).fetchone()
+    def document_sha(self, path: str) -> str | None:
+        with self.lock:
+            row = self.conn.execute(
+                "SELECT sha256 FROM documents WHERE path = ?", (path,)
+            ).fetchone()
         return None if row is None else str(row["sha256"])
 
-    def replace_document(self, source: str, sha256: str, chunks: list[NewChunk]) -> None:
-        """Delete any previous version of ``source`` and insert the new one in one transaction."""
+    def replace_document(
+        self, source: str, sha256: str, chunks: list[NewChunk], *, path: str | None = None
+    ) -> None:
+        """Replace the document stored under ``path`` (default: ``source``) in one transaction.
+
+        ``path`` identifies the document (ingest passes the resolved file path); ``source`` is
+        the display name used in citations.
+        """
+        key = source if path is None else path
         with self.lock, self.conn:
             self.conn.execute(
-                "DELETE FROM chunks WHERE document_id IN "
-                "(SELECT id FROM documents WHERE source = ?)",
-                (source,),
+                "DELETE FROM chunks WHERE document_id IN (SELECT id FROM documents WHERE path = ?)",
+                (key,),
             )
-            self.conn.execute("DELETE FROM documents WHERE source = ?", (source,))
+            self.conn.execute("DELETE FROM documents WHERE path = ?", (key,))
             cur = self.conn.execute(
-                "INSERT INTO documents (source, sha256, ingested_at) VALUES (?, ?, ?)",
-                (source, sha256, datetime.now(UTC).isoformat(timespec="seconds")),
+                "INSERT INTO documents (path, source, sha256, ingested_at) VALUES (?, ?, ?, ?)",
+                (key, source, sha256, datetime.now(UTC).isoformat(timespec="seconds")),
             )
             doc_id = cur.lastrowid
             self.conn.executemany(

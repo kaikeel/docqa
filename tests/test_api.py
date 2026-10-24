@@ -127,6 +127,47 @@ def test_ingest_symlink_escape_is_400(
     assert response.status_code == 400
 
 
+def _with_root(service: DocQAService, root: Path) -> None:
+    from dataclasses import replace
+
+    service.settings = replace(service.settings, ingest_root=root)
+
+
+def test_ingest_file_symlink_escape_is_skipped(
+    client: TestClient, service: DocQAService, tmp_path: Path
+) -> None:
+    (tmp_path / "secret.md").write_text("TOPSECRET outside root password hunter2", "utf-8")
+    root = tmp_path / "root"
+    (root / "docs").mkdir(parents=True)
+    (root / "docs" / "link.md").symlink_to(tmp_path / "secret.md")
+    _with_root(service, root)
+    response = client.post("/ingest", json={"path": "docs"})
+    assert response.status_code == 200
+    assert response.json()["documents"] == 0
+    assert response.json()["skipped"] == ["link.md: symlink outside root"]
+    assert client.post("/ask", json={"question": "TOPSECRET hunter2"}).json()["found"] is False
+
+
+def test_ingest_symlink_inside_ingest_root_is_allowed(
+    client: TestClient, service: DocQAService, tmp_path: Path
+) -> None:
+    root = tmp_path / "root"
+    (root / "shared").mkdir(parents=True)
+    (root / "docs").mkdir()
+    (root / "shared" / "faq.md").write_text("zebra crossing rules", "utf-8")
+    (root / "docs" / "faq.md").symlink_to(root / "shared" / "faq.md")
+    _with_root(service, root)
+    response = client.post("/ingest", json={"path": "docs"})
+    assert (response.json()["documents"], response.json()["skipped"]) == (1, [])
+
+
+@pytest.mark.parametrize("path", ["exam\x00ples", "\x00"])
+def test_ingest_path_with_nul_is_400(client: TestClient, path: str) -> None:
+    response = client.post("/ingest", json={"path": path})  # sent as JSON "\u0000"
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "invalid_path"
+
+
 def test_get_service_builds_from_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DOCQA_DB", str(tmp_path / "env.db"))
     api.get_service.cache_clear()

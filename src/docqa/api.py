@@ -179,11 +179,15 @@ def health() -> dict[str, str]:
 @app.post("/ingest")
 def ingest(body: IngestRequest, service: ServiceDep) -> IngestResponse:
     root = service.settings.ingest_root.resolve()
-    target = (root / body.path).resolve()  # absolute paths replace root; checked below
+    try:
+        target = (root / body.path).resolve()  # absolute paths replace root; checked below
+    except (ValueError, OSError):  # e.g. an embedded NUL character
+        raise _error(400, "invalid_path", "The path is not valid.") from None
     if not target.is_relative_to(root):
         raise _error(400, "path_outside_root", "Path must be inside DOCQA_INGEST_ROOT.")
     try:
-        report = service.ingest(Path(target))
+        # Symlinked files may point anywhere inside the ingest root, never outside it.
+        report = service.ingest(Path(target), allowed_root=root)
     except IngestError:
         raise _error(400, "ingest_error", f"{body.path} is not a directory.") from None
     return IngestResponse(
