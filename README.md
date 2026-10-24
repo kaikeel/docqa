@@ -49,7 +49,7 @@ Open `http://localhost:8000/` for the sample chat widget, or call the API direct
 
 | Endpoint | Request | Response |
 |---|---|---|
-| `GET /health` | — | `{"status": "ok"}` |
+| `GET /health` | — | `{"status": "ok"}`, or `503` if the index cannot be written |
 | `GET /` | — | Sample chat widget (HTML) |
 | `POST /ingest` | `{"path": "examples/docs"}` (inside `DOCQA_INGEST_ROOT`) | `{"documents", "chunks", "skipped", "unchanged"}` |
 | `POST /ask` | `{"question": "...", "k": 5}` (`k` optional, 1–20) | `{"answer", "citations": [{"source", "quote"}], "found"}` |
@@ -99,7 +99,14 @@ would need CORS and a looser `frame-ancestors` policy; v0.1 does not do this.
 
 ```bash
 docker build -t docqa .
-docker run --rm -p 8000:8000 -e ANTHROPIC_API_KEY docqa     # or: --env-file .env
+docker run --rm -p 127.0.0.1:8000:8000 -e ANTHROPIC_API_KEY docqa
+```
+
+Or keep the settings in a file (the key stays out of your shell history):
+
+```bash
+cp .env.example .env            # then put your key after ANTHROPIC_API_KEY=
+docker run --rm -p 127.0.0.1:8000:8000 --env-file .env docqa
 ```
 
 In another terminal:
@@ -112,8 +119,14 @@ curl -s -X POST localhost:8000/ask -H 'Content-Type: application/json' \
 ```
 
 The image runs as a non-root user, contains the sample documents under `/app/examples`, and stores the index
-in `/data/docqa.db`. Add `-v docqa-data:/data` to keep the index between runs. The key is passed at run time
-and is never part of the image.
+in `/data/docqa.db` (`/data` is the only writable folder; do not set `DOCQA_DB` to a path elsewhere). Add
+`-v docqa-data:/data` to keep the index between runs. The key is passed at run time and is never part of the
+image. `127.0.0.1:` publishes the port on this machine only: the API has no authentication, and anyone who can
+reach it can spend your API key.
+
+If the settings are invalid or the index cannot be opened, the container stops at start-up with a message such
+as `DocQA cannot start: cannot open the index ...`. `GET /health` returns `503` with code `index_unavailable` if
+the index stops accepting writes.
 
 ## Configuration
 
@@ -125,10 +138,10 @@ All settings are environment variables (see `.env.example`). DocQA does not load
 | `ANTHROPIC_API_KEY` | — | Needed only for answers with evidence and the full eval. Read by the Anthropic SDK. |
 | `DOCQA_MODEL` | `claude-opus-5-5` | Claude model. |
 | `DOCQA_EFFORT` | `low` | Effort level sent to the API: `low`, `medium`, `high`, `xhigh` or `max`. |
-| `DOCQA_DB` | `./docqa.db` | SQLite index file. |
+| `DOCQA_DB` | `./docqa.db` (Docker: `/data/docqa.db`) | SQLite index file; its folder must be writable. |
 | `DOCQA_TOP_K` | `5` | Passages sent to Claude per question. |
 | `DOCQA_MIN_COVERAGE` | `0.5` | Share of the question (0 to 1, rare words weigh more) that the best passage must contain to count as evidence (see below). |
-| `DOCQA_INGEST_ROOT` | current directory | `POST /ingest` only accepts folders inside this directory. |
+| `DOCQA_INGEST_ROOT` | current directory (Docker: `/app`) | `POST /ingest` only accepts folders inside this directory. |
 | `DOCQA_CHAT_MAX_MESSAGES` | `20` | Maximum messages per `/chat` request (at most 100). |
 | `DOCQA_CHAT_MAX_CHARS` | `2000` | Maximum characters per `/chat` user message; longer earlier answers are shortened to this length (at most 32000). |
 

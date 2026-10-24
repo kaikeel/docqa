@@ -1,3 +1,4 @@
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -177,6 +178,51 @@ def test_get_service_builds_from_env(tmp_path: Path, monkeypatch: pytest.MonkeyP
         assert api.get_service() is service
     finally:
         api.get_service.cache_clear()
+
+
+# --- start-up and health (QA #2, #7) ------------------------------------------------
+
+
+def test_bad_environment_fails_at_startup(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DOCQA_EFFORT", "turbo")
+    with (
+        pytest.raises(RuntimeError, match="DocQA cannot start: DOCQA_EFFORT must be one of"),
+        TestClient(api.app),
+    ):
+        pass
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root can write anywhere")
+def test_unwritable_database_fails_at_startup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    locked.chmod(0o500)  # like /app in the image, owned by root
+    monkeypatch.setenv("DOCQA_DB", str(locked / "docqa.db"))
+    try:
+        with (
+            pytest.raises(RuntimeError, match=r"cannot open the index .*locked/docqa\.db"),
+            TestClient(api.app),
+        ):
+            pass
+    finally:
+        locked.chmod(0o700)
+
+
+def test_startup_builds_the_service_once(tmp_path: Path) -> None:
+    with TestClient(api.app) as client:
+        assert client.get("/health").json() == {"status": "ok"}
+    assert api.get_service.cache_info().currsize == 1
+
+
+def test_health_reports_an_unwritable_index(client: TestClient, service: DocQAService) -> None:
+    service.store.conn.execute("PRAGMA query_only = ON")  # every write now fails
+    response = client.get("/health")
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "index_unavailable"
+    service.store.conn.execute("PRAGMA query_only = OFF")
+    assert client.get("/health").status_code == 200
 
 
 # --- POST /chat (AC8) -----------------------------------------------------------------
