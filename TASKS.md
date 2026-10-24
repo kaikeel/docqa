@@ -7,7 +7,7 @@ Thiết kế: `docs/SPEC.md` · ADR: `docs/adr/` · Mỗi task một nhánh `fea
 |---|---|---|---|---|---|---|
 | T1 | Dựng khung Python: `pyproject.toml` (uv, Python 3.12, layout `src/docqa/`, pin runtime/dev deps theo SPEC, entry point `docqa`), cấu hình ruff (lint + format), mypy strict cho `src`, pytest + pytest-cov (`--cov-fail-under=80`), `uv.lock`, `tests/conftest.py` chặn khởi tạo `anthropic.Anthropic` + xoá `ANTHROPIC_API_KEY`, test smoke `docqa --help` | — | eng-developer | 1h | done | abb547c |
 | T2 | `models.py`, `errors.py`, `config.py` (`Settings.from_env`, mặc định theo bảng env trong SPEC) + test | T1 | eng-developer | 0.5h | done | 8b44e4e |
-| T3 | `ingest.py` phần đọc & chunk: `chunk_text` (800/150, cắt ở khoảng trắng), loader md/txt/pdf (pdf theo trang), fixture PDF nhỏ trong `tests/fixtures/` + test | T2 | eng-developer | 1h | todo | |
+| T3 | `ingest.py` phần đọc & chunk: `chunk_text` (800/150, cắt ở khoảng trắng), loader md/txt/pdf (pdf theo trang), fixture PDF nhỏ trong `tests/fixtures/` + test | T2 | eng-developer | 1h | done | 00a3a77 |
 | T4 | `store.py`: schema SQLite + FTS5 + trigger, transaction; `ingest_dir` (đệ quy, bỏ file ẩn/đuôi lạ, idempotent theo sha256, thay chunk khi file đổi) + test (gồm test FTS5 khả dụng) | T3 | eng-developer | 1h | todo | |
 | T5 | Tài liệu mẫu `examples/docs/` (3–5 file tự viết, có `.md` và `.txt`, công khai được) + `examples/eval.jsonl` (≥ 10 answerable, ≥ 3 unanswerable) | T1 | eng-developer | 0.5h | todo | |
 | T6 | `retriever.py`: Protocol `Retriever`, `FTS5Retriever` (làm sạch truy vấn, `-bm25()`, ngưỡng `min_score`) + test (ký tự đặc biệt/toán tử FTS5, chỉ stopword, dưới ngưỡng → `[]`, thứ tự điểm) | T4 | eng-developer | 1h | todo | |
