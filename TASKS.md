@@ -109,7 +109,7 @@ PR/issue release (hoặc báo "OK"/lỗi cho PMO):
 
 1. **Clone sạch + bấm giờ (AC6, lối uv)** — tính từ lúc clone tới khi có câu trả lời đầu tiên, mục tiêu ≤ 10 phút:
    ```bash
-   git clone <repo> /tmp/docqa-demo && cd /tmp/docqa-demo
+   git clone https://github.com/kaikeel/docqa.git /tmp/docqa-demo && cd /tmp/docqa-demo
    export ANTHROPIC_API_KEY=...        # key của CEO, không lưu vào file trong repo
    uv sync --locked
    uv run docqa ingest examples/docs
@@ -129,7 +129,7 @@ PR/issue release (hoặc báo "OK"/lỗi cho PMO):
 4. **Lối Docker (AC6)**:
    ```bash
    docker build -t docqa .
-   docker run --rm -p 8000:8000 -e ANTHROPIC_API_KEY docqa
+   docker run --rm -p 127.0.0.1:8000:8000 -e ANTHROPIC_API_KEY docqa
    # terminal khác:
    curl -s localhost:8000/health
    curl -s -X POST localhost:8000/ingest -H 'Content-Type: application/json' -d '{"path": "examples/docs"}'

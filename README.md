@@ -12,7 +12,7 @@ CLI, a small HTTP API with stateless multi-turn chat, and a sample chat widget.
 Requirements: Python 3.12 and [uv](https://docs.astral.sh/uv/) (tested with uv 0.6.3).
 
 ```bash
-git clone <repository-url> docqa && cd docqa
+git clone https://github.com/kaikeel/docqa.git docqa && cd docqa
 uv sync --locked                       # creates .venv with pinned dependencies
 uv run docqa ingest examples/docs      # indexes the sample documents into ./docqa.db
 ```
@@ -36,8 +36,16 @@ uv run docqa ask --json "How long is the warranty on a fixed-price project?"
 The plain output prints the answer followed by numbered citations, `[1] warranty-policy.md — "..."`.
 `--json` prints the same structure as `POST /ask`: `{"answer", "citations": [{"source", "quote"}], "found"}`.
 
-The sample documents in `examples/docs/` describe a fictional studio ("Kaikeel Handbook Lite"). They were
-written for this demo and may be shared freely.
+The sample documents in `examples/docs/` describe a fictional studio ("Kaikeel Handbook Lite"): warranty,
+support plans (Starter and Pro), delivery and release process, incident response, estimates and change
+requests, coding standards, security checklist and client communication. They were written for this demo and
+may be shared freely. Questions to try:
+
+- "What is the warranty?" or "How quickly are critical defects fixed?"
+- "What support plans do you have?", then "And what about the other one?" (chat)
+- "How do you handle incidents?", "What is a change request?", "How often is a rollback drill rehearsed?"
+
+Questions about things the documents do not cover ("What is the warranty on hardware?") get "Not found".
 
 ## HTTP API and chat widget
 
@@ -45,7 +53,8 @@ written for this demo and may be shared freely.
 uv run uvicorn docqa.api:app --port 8000
 ```
 
-Open `http://localhost:8000/` for the sample chat widget, or call the API directly:
+Open `http://localhost:8000/` for the sample chat widget (it shows three example questions you can click), or
+call the API directly:
 
 | Endpoint | Request | Response |
 |---|---|---|
@@ -219,8 +228,8 @@ removes `ANTHROPIC_API_KEY` and blocks network connections for the whole run.
 
 - **Lexical search.** BM25 matches words, not meaning. Synonyms and different word forms are missed: the sample
   questions "What linter do you use?" (the document says "linted with ruff") and "How do I report a bug?" (the
-  document says "defect") miss the right file. English plurals and verb forms are handled by stemming. The `Retriever` interface allows a vector or hybrid retriever to be added later without changing
-  the API.
+  document says "defect") miss the right file. English plurals and verb forms are handled by stemming. The `Retriever` interface allows a
+  vector or hybrid retriever to be added later without changing the API.
 - **Follow-up questions.** A follow-up is combined with the previous user question only when it contains a
   reference word ("it", "that", "other", "one", ...). A follow-up without one that still matches something on
   its own, such as "And the price?", is searched as a standalone question and may pick up the wrong item.
@@ -230,8 +239,27 @@ removes `ANTHROPIC_API_KEY` and blocks network connections for the whole run.
   the Enterprise plan?" is rejected, but only just).
 - **Index maintenance.** Files deleted from a folder are not removed from the index in v0.1; delete the
   database file and ingest again.
-- **PDFs.** Only PDFs with a text layer are supported; scanned PDFs are skipped (no OCR).
-- **No authentication or rate limiting** on the API, and no CORS. Run it locally or behind your own gateway.
+- **Languages.** Stopwords, stemming and follow-up reference words are English. Vietnamese works with or
+  without diacritics. Chinese, Japanese and Korean are not segmented into words, so a search for part of a
+  sentence (for example `保修` inside `保修政策…`) finds nothing.
+- **PDFs.** Only PDFs with a text layer are supported; scanned PDFs are skipped (no OCR). pypdf may print
+  warnings for damaged PDFs on stderr in addition to the `skipped` line.
+- **Duplicate names.** Files are tracked by their absolute path, so two folders can both contain
+  `warranty-policy.md`; citations show the path relative to the ingested folder, so both are cited under the
+  same name.
+- **Symlinks.** Symlinked folders are not followed, and symlinked files are only read if they point inside the
+  ingested folder (`DOCQA_INGEST_ROOT` for the API); others are listed as "symlink outside root".
+- **One shared index.** `POST /ingest` accepts any folder inside `DOCQA_INGEST_ROOT`, and everything ingested
+  goes into the same index; there is no way to remove a folder except deleting the database file. The
+  `skipped` list names every skipped file and can be long. Point `DOCQA_INGEST_ROOT` at your documents, not at
+  a folder that also contains code or virtual environments.
+- **No authentication or rate limiting** on the API, and no CORS. Anyone who can reach it can ingest folders
+  and spend your API key: run it locally (`-p 127.0.0.1:...` with Docker) or behind your own gateway. The
+  OpenAPI pages (`/docs`, `/redoc`, `/openapi.json`) are enabled.
+- **Untrusted documents.** Text in an ingested document can try to steer the answer (prompt injection).
+  Citations are always verbatim quotes returned by the API, but only ingest documents you trust.
+- **Base image.** `python:3.12-slim` currently has known Debian CVEs without a fix available; rebuild the image
+  when Debian publishes fixes.
 
 ## Project layout
 
