@@ -29,6 +29,7 @@ Thiết kế: `docs/SPEC.md` · ADR: `docs/adr/` · Mỗi task một nhánh `fea
 | T22 | Sửa vòng 1 (QA #2, #7, SEC L2, L4): API dựng service lúc khởi động (env sai / index không mở được → dừng với "DocQA cannot start: …"), `/health` 503 `index_unavailable` khi index không ghi được; `.env.example` bỏ `DOCQA_DB`/`DOCQA_INGEST_ROOT`; Dockerfile multi-stage không còn uv/cache; README `-p 127.0.0.1:8000:8000` + lối `--env-file` | T21 | eng-developer | 1h | done | 9f9ee24, 3954a64 (nhánh `fix/docker-startup`) |
 | T23 | Sửa vòng 1 (QA #6, #7, #8, #16): mọi lỗi API là JSON `{"detail": {"code", "message"}}` (422 pydantic → `invalid_request` không lặp input, 404/405, 500 `internal_error`); `GET /favicon.ico` 204; README bảng mã lỗi | T22 | eng-developer | 0.5h | done | 5f7a265 (nhánh `fix/api-errors`) |
 | T24 | Sửa vòng 1 (SEC M3): ghim `actions/checkout` (v4.4.0) và `astral-sh/setup-uv` (v6.8.0) theo commit SHA kèm comment tag, test `test_ci.py`, Dependabot cho github-actions | T23 | eng-developer | 0.25h | done | fe8a829 (nhánh `fix/ci-pin-actions`) |
+| T25 | Sửa vòng 1 (QA #14 + README): widget có 3 câu hỏi gợi ý (test qua cổng bằng chứng); README câu hỏi gợi ý, Known limitations (CJK, PDF scan, trùng tên, symlink, index chung, không auth, tài liệu không tin cậy, CVE base image), URL repo; PROJECT.md milestone AC1–AC8, trạng thái, backlog; SPEC trạng thái | T24 | eng-developer | 0.5h | done | 0785f80 (nhánh `docs/fix-round-1`) |
 
 Tổng ước lượng Eng: 14.5h công AI (chưa gồm QA + Security gate). Chat + widget thêm 3.5h (T15–T18, T12 +0.5h),
 đã được chấp nhận ở Q2.
