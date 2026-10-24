@@ -79,3 +79,13 @@ tiếp quản được. Dự án này chứng minh Kaikeel làm RAG **đúng chu
 ## Phê duyệt G2
 - [x] Claude duyệt theo ADR 0005 (dự án nội bộ, không khách, không tiền) — ngày: 2026-10-25
 - [ ] CEO duyệt public repo (Milestone 2) — việc gửi ra ngoài, phải hỏi CEO
+
+### Quyết định cho câu hỏi còn mở (Claude, theo ADR 0005 — 2026-10-25)
+- **Q1:** Agent không gọi API thật. QA kiểm AC1/AC6 bằng LLM giả + kiểm tra cấu trúc request. Lần chạy thật
+  đầu tiên do **CEO tự chạy** bằng key của mình khi xem demo ở Milestone 2 (một lệnh `docqa ask`, chi phí vài cent).
+- **Q2:** Giữ nguyên scope, chấp nhận vượt appetite ~3 giờ công AI (chi phí không đáng kể, portfolio cần đủ).
+- **Q3:** Không thêm `python-dotenv`. README hướng dẫn `export` và Docker `--env-file .env`.
+- **Q4:** Claude tạo repo **private** `kaikeel/docqa` và push sau khi QA + Security PASS (Milestone 1).
+  Public repo là việc ra bên ngoài → hỏi CEO (Milestone 2).
+- **Q5:** T7 kiểm SDK. Thiếu `fallbacks` → bỏ fallback, ghi ADR, vẫn dùng SDK chính thức (không HTTP thô).
+- **uv:** máy dùng uv 0.6.3, không nâng cấp; lockfile tạo bằng bản này vẫn đọc được bởi uv mới trên CI.
