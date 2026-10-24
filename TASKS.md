@@ -23,6 +23,7 @@ Thiết kế: `docs/SPEC.md` · ADR: `docs/adr/` · Mỗi task một nhánh `fea
 | T12 | `Dockerfile` + `.dockerignore`, `.env.example` (đủ biến, gồm `DOCQA_CHAT_*`), `README.md` (quick start uv + Docker, cấu hình, `POST /chat` + ví dụ, widget tại `/` + mục "Embedding the widget", giới hạn BM25 và giới hạn câu nối tiếp, eval, test), `CHANGELOG.md` mục Unreleased | T10, T11, T17, T18 | eng-developer | 1.5h | done | d33d2a6 |
 | T13 | Kiểm tự động trên clone sạch (không key, theo Q1): làm theo README phần không cần key (uv + Docker), bấm giờ; xác nhận checklist G3 cho CEO (cuối file) khớp README; ghi kết quả vào PR | T12 | eng-developer | 0.5h | done | kiểm trên a07a5aa (không PR, không push; kết quả trong commit) |
 | T14 | Chuẩn bị release: chuyển QA (`qa-reviewer`) + Security gate (`sec-devops`, `SECURITY_REPORT.md`); sau PASS → `CHANGELOG` `[0.1.0]`, tag `v0.1.0`; trình CEO checklist G3 | T13 | eng-developer → qa-reviewer, sec-devops | 0.5h | chờ QA + Security (chưa tag, chưa push) | — |
+| T19 | Sửa vòng 1 (QA #1, #13): cổng bằng chứng theo độ phủ câu hỏi có trọng số IDF (`DOCQA_MIN_COVERAGE`), porter stemming, stopword từ đệm, schema version; tách bộ dev/holdout; ADR 0007, sửa ADR 0002, đóng Q6 | T11 | eng-developer | 1.5h | done | fe86141 (nhánh `fix/evidence-gate`) |
 
 Tổng ước lượng Eng: 14.5h công AI (chưa gồm QA + Security gate). Chat + widget thêm 3.5h (T15–T18, T12 +0.5h),
 đã được chấp nhận ở Q2.

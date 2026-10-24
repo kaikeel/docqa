@@ -24,3 +24,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 - `docqa eval` with retrieval-only hit@k and full-mode citation rate; `DOCQA_MIN_SCORE` calibrated to 3.0 on the sample set and applied as an evidence gate on the best match (T11).
 - Dockerfile (non-root, uv-locked), `.env.example` and README with uv and Docker quick starts, API/chat/widget usage, evaluation and known limitations (T12).
 - Verified the README on a clean clone without an API key: uv path, retrieval eval, tests and Docker image (T13).
+
+### Changed
+- The evidence gate now uses IDF-weighted query coverage of the best passage (`DOCQA_MIN_COVERAGE`, default
+  0.5) instead of a raw BM25 score (`DOCQA_MIN_SCORE` removed), so short natural questions such as "What is the
+  warranty?" are answered; FTS5 uses porter stemming. Calibrated on the dev set `examples/eval.jsonl` and
+  checked on the new holdout set `examples/eval_holdout.jsonl` (ADR 0007). Index files from earlier builds are
+  refused with a "delete and ingest again" message (T19).
+
+### Fixed
+- `DOCQA_MIN_COVERAGE` values outside [0, 1], `nan` and `inf` are rejected at start-up (T19).
