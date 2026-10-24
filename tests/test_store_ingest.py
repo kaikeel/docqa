@@ -232,3 +232,22 @@ def test_document_sha_holds_the_lock(store: Store) -> None:
         assert worker.is_alive()  # blocked while another thread holds the lock
     worker.join(timeout=5)
     assert result == ["h1"]
+
+
+def test_check_writable(store: Store) -> None:
+    store.check_writable()
+    store.conn.execute("PRAGMA query_only = ON")
+    with pytest.raises(DocQAError, match="cannot write to the index"):
+        store.check_writable()
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root can write anywhere")
+def test_unopenable_database_raises_docqa_error(tmp_path: Path) -> None:
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    locked.chmod(0o500)
+    try:
+        with pytest.raises(DocQAError, match="cannot open the index"):
+            Store(locked / "docqa.db")
+    finally:
+        locked.chmod(0o700)

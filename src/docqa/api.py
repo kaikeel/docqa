@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import logging
 import re
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from functools import lru_cache
 from importlib.resources import files
 from pathlib import Path
@@ -18,7 +21,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from docqa import __version__
 from docqa.config import CHAT_CHARS_CAP, CHAT_MESSAGES_CAP, Settings
-from docqa.errors import AnswerError, ChatHistoryError, IngestError, LLMRateLimitError
+from docqa.errors import AnswerError, ChatHistoryError, DocQAError, IngestError, LLMRateLimitError
 from docqa.models import Answer, ChatTurn
 from docqa.service import DocQAService
 
@@ -65,10 +68,27 @@ class BodySizeLimitMiddleware:
         await self.app(scope, limited_receive, send)
 
 
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Build the service at start-up so bad settings or an unusable index stop the server
+    with a clear message, instead of a healthy-looking server that answers 500 (QA #2, #7)."""
+    build = app.dependency_overrides.get(get_service, get_service)
+    try:
+        build()
+    except DocQAError as exc:
+        logger.error("DocQA cannot start: %s", exc)
+        raise RuntimeError(f"DocQA cannot start: {exc}") from None
+    yield
+
+
 app = FastAPI(
     title="Kaikeel DocQA",
     version=__version__,
     description="Answers questions from your documents, with verifiable citations.",
+    lifespan=lifespan,
 )
 app.add_middleware(BodySizeLimitMiddleware, max_bytes=MAX_BODY_BYTES)
 
@@ -172,7 +192,13 @@ def widget() -> HTMLResponse:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+def health(service: ServiceDep) -> dict[str, str]:
+    """200 only if the index can be written; 503 ``index_unavailable`` otherwise."""
+    try:
+        service.store.check_writable()
+    except DocQAError as exc:
+        logger.error("Health check failed: %s", exc)
+        raise _error(503, "index_unavailable", "The index cannot be written.") from None
     return {"status": "ok"}
 
 

@@ -68,16 +68,29 @@ class Store:
 
     def __init__(self, path: Path | str) -> None:
         self.path = Path(path)
-        if str(path) != ":memory:":
-            self.path.parent.mkdir(parents=True, exist_ok=True)
         # FastAPI runs sync endpoints in a thread pool, so one connection is shared across
         # threads; every use of it must hold ``lock``.
-        self.conn = sqlite3.connect(str(path), check_same_thread=False)
         self.lock = threading.RLock()
-        self.conn.row_factory = sqlite3.Row
-        self._check_version()
-        self.conn.executescript(SCHEMA)
-        self.conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        try:
+            if str(path) != ":memory:":
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.conn = sqlite3.connect(str(path), check_same_thread=False)
+            self.conn.row_factory = sqlite3.Row
+            self._check_version()
+            self.conn.executescript(SCHEMA)
+            self.conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        except (sqlite3.Error, OSError) as exc:
+            raise DocQAError(
+                f"cannot open the index {self.path} ({exc}); set DOCQA_DB to a writable location"
+            ) from None
+
+    def check_writable(self) -> None:
+        """Raise DocQAError unless the index accepts writes (used by GET /health)."""
+        try:
+            with self.lock:
+                self.conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        except sqlite3.Error as exc:
+            raise DocQAError(f"cannot write to the index {self.path} ({exc})") from None
 
     def _check_version(self) -> None:
         """Refuse an index written by another schema version instead of misreading it."""
