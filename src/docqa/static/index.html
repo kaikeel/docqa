@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kaikeel DocQA</title>
+<style>
+  :root { color-scheme: light; --ink: #1d2433; --muted: #5b6475; --line: #d9dee7; --accent: #2b5fd9; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: #f5f7fa; }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 16px; display: flex; flex-direction: column; min-height: 100vh; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 16px; }
+  #log { flex: 1; display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+  .msg { padding: 10px 14px; border-radius: 10px; background: #fff; border: 1px solid var(--line); white-space: pre-wrap; }
+  .msg.user { align-self: flex-end; background: #e8eefc; border-color: #c9d6f7; max-width: 85%; }
+  .msg.assistant { align-self: flex-start; max-width: 100%; }
+  .msg.not-found { color: var(--muted); font-style: italic; }
+  .msg.error { border-color: #e3a1a1; background: #fdf1f1; }
+  .citations { margin: 8px 0 0; padding: 8px 0 0 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); white-space: normal; }
+  .citations li { margin: 2px 0; }
+  .source { font-weight: 600; color: var(--ink); }
+  form { display: flex; gap: 8px; }
+  input { flex: 1; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+  button { padding: 10px 16px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font: inherit; cursor: pointer; }
+  button:disabled { opacity: 0.6; cursor: wait; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Kaikeel DocQA</h1>
+  <p class="lead">Ask about the indexed documents. Every answer lists the passages it is based on.</p>
+  <div id="log" aria-live="polite"></div>
+  <form id="ask-form" autocomplete="off">
+    <label for="question" hidden>Question</label>
+    <input id="question" name="question" maxlength="2000" placeholder="Ask a question about the documents" required>
+    <button id="send" type="submit">Send</button>
+  </form>
+</main>
+<script>
+(function () {
+  "use strict";
+  var MAX_MESSAGES = 20; // same as the server default (DOCQA_CHAT_MAX_MESSAGES)
+  var messages = [];
+  var log = document.getElementById("log");
+  var form = document.getElementById("ask-form");
+  var input = document.getElementById("question");
+  var send = document.getElementById("send");
+
+  function bubble(role, text, extraClass) {
+    var div = document.createElement("div");
+    div.className = "msg " + role + (extraClass ? " " + extraClass : "");
+    div.textContent = text;
+    log.appendChild(div);
+    div.scrollIntoView({ block: "end" });
+    return div;
+  }
+
+  function showCitations(container, citations) {
+    if (!citations || citations.length === 0) { return; }
+    var list = document.createElement("ol");
+    list.className = "citations";
+    citations.forEach(function (citation) {
+      var item = document.createElement("li");
+      var source = document.createElement("span");
+      source.className = "source";
+      source.textContent = String(citation.source);
+      item.appendChild(source);
+      item.appendChild(document.createTextNode(" — “" + String(citation.quote) + "”"));
+      list.appendChild(item);
+    });
+    container.appendChild(list);
+  }
+
+  function trimHistory() {
+    // Drop the oldest question/answer pair so the first message is always from the user.
+    while (messages.length > MAX_MESSAGES) { messages.splice(0, 2); }
+  }
+
+  async function ask(question) {
+    messages.push({ role: "user", content: question });
+    trimHistory();
+    bubble("user", question);
+    send.disabled = true;
+    try {
+      var response = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: messages })
+      });
+      var data = await response.json().catch(function () { return {}; });
+      if (!response.ok) {
+        messages.pop(); // keep the history valid (alternating, ends with an answer)
+        var detail = data && data.detail && data.detail.message;
+        bubble("assistant", detail ? String(detail) : "Something went wrong. Please try again.", "error");
+        return;
+      }
+      var answer = String(data.answer);
+      var div = bubble("assistant", answer, data.found ? "" : "not-found");
+      showCitations(div, data.citations);
+      messages.push({ role: "assistant", content: answer });
+    } catch (err) {
+      messages.pop();
+      bubble("assistant", "The server could not be reached. Please try again.", "error");
+    } finally {
+      send.disabled = false;
+      input.focus();
+    }
+  }
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+    var question = input.value.trim();
+    if (!question || send.disabled) { return; }
+    input.value = "";
+    ask(question);
+  });
+})();
+</script>
+</body>
+</html>
