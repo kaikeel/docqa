@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -49,3 +50,11 @@ class IngestReport:
     chunks: int
     skipped: list[str]  # "path: reason" for hidden, unsupported, empty or unreadable files
     unchanged: int = 0
+
+
+@dataclass(frozen=True)
+class ChatTurn:
+    """One message of a client-held chat history (the server keeps no sessions)."""
+
+    role: Literal["user", "assistant"]
+    content: str
