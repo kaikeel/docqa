@@ -27,6 +27,8 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
         with:
+          # Pinned to the uv version used locally so uv.lock is read identically on both sides.
+          version: "0.6.3"
           enable-cache: true
 
       - name: Install Python 3.12
