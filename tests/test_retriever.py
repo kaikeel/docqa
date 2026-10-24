@@ -106,3 +106,13 @@ def test_random_input_never_raises(store: Store) -> None:
 def test_satisfies_protocol(store: Store) -> None:
     retriever: Retriever = FTS5Retriever(store, min_score=0.0)
     assert isinstance(retriever, Retriever)
+
+
+def test_threshold_gates_on_best_match_and_keeps_weaker_context(store: Store) -> None:
+    scores = [c.score for c in FTS5Retriever(store, min_score=float("-inf")).search("mango", 5)]
+    best, weaker = scores[0], scores[-1]
+    assert best > weaker
+    gate = (best + weaker) / 2  # above the weaker chunk, below the best one
+    results = FTS5Retriever(store, min_score=gate).search("mango", 5)
+    assert [c.score for c in results] == scores  # weaker chunk kept as context
+    assert FTS5Retriever(store, min_score=best + 0.01).search("mango", 5) == []

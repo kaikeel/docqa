@@ -58,7 +58,13 @@ def to_match_expression(tokens: list[str]) -> str:
 
 
 class FTS5Retriever:
-    """BM25 ranking over the FTS5 index; chunks scoring below ``min_score`` are dropped."""
+    """BM25 ranking over the FTS5 index, gated by ``min_score``.
+
+    ``min_score`` is an evidence gate: if even the best chunk scores below it, the result is
+    empty (-> "not found", no LLM call). Otherwise the full top-k is returned, including
+    weaker chunks, so the model sees related passages (e.g. both plans for "the other one").
+    See docs/adr/0002 (calibration).
+    """
 
     def __init__(self, store: Store, min_score: float) -> None:
         self.store = store
@@ -70,6 +76,8 @@ class FTS5Retriever:
             return []
         with self.store.lock:
             rows = self.store.conn.execute(_SEARCH_SQL, (to_match_expression(tokens), k)).fetchall()
+        if not rows or rows[0]["score"] < self.min_score:
+            return []
         return [
             Chunk(
                 id=row["id"],
@@ -82,5 +90,4 @@ class FTS5Retriever:
                 score=float(row["score"]),
             )
             for row in rows
-            if row["score"] >= self.min_score
         ]

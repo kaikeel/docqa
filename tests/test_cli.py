@@ -109,7 +109,7 @@ def test_llm_error_exits_2_with_clear_message(db: Path, monkeypatch: pytest.Monk
 
     monkeypatch.setattr(cli, "MODEL_FACTORY", Failing)
     ingest()
-    result = runner.invoke(cli.app, ["ask", "warranty"])
+    result = runner.invoke(cli.app, ["ask", "How quickly are critical defects fixed?"])
     assert result.exit_code == 2
     assert "ANTHROPIC_API_KEY is missing or invalid" in result.stderr
     assert "Traceback" not in result.output

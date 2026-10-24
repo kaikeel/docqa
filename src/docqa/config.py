@@ -22,8 +22,9 @@ DEFAULT_DB = "./docqa.db"
 DEFAULT_TOP_K = 5
 DEFAULT_CHAT_MAX_MESSAGES = 20
 DEFAULT_CHAT_MAX_CHARS = 2000
-# Provisional; calibrated on examples/ in T11 (see README and docs/adr/0002).
-DEFAULT_MIN_SCORE = 0.0
+# Calibrated on examples/ (T11, see README and docs/adr/0002): the highest-scoring
+# unanswerable sample question scores 2.67, the weakest answerable hit 4.52.
+DEFAULT_MIN_SCORE = 3.0
 
 
 @dataclass(frozen=True)
