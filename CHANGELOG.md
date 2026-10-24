@@ -16,3 +16,4 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 - `ClaudeAnswerModel` using Claude's native citations through the official SDK (server-side fallback beta, explicit effort), and a `FakeAnswerModel` for offline tests (T7).
 - Chat history support in the answer model: earlier turns as plain text, documents only in the latest turn (T15).
 - `DocQAService`: ingest and ask, with a not-found path that never creates the model or calls the API (T8).
+- Stateless chat core: history validation, deterministic follow-up retrieval queries and `DocQAService.chat` (T16).
