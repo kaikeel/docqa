@@ -21,7 +21,7 @@ from docqa.llm import (
     ClaudeAnswerModel,
     FakeAnswerModel,
 )
-from docqa.models import Chunk, Citation
+from docqa.models import ChatTurn, Chunk, Citation
 
 CHUNKS = [
     Chunk(11, "warranty-policy.md", 0, 0, 40, None, "Every project includes a 7-day warranty."),
@@ -275,7 +275,7 @@ def test_default_factory_uses_official_sdk_without_key_argument() -> None:
 def test_fake_model_records_calls_and_cites_first_chunk() -> None:
     fake = FakeAnswerModel()
     answer = fake.answer("q", CHUNKS)
-    assert fake.calls == [("q", CHUNKS)]
+    assert fake.calls == [("q", CHUNKS, ())]
     assert answer.found is True
     assert answer.citations == [Citation("warranty-policy.md", CHUNKS[0].text[:60], 11)]
     assert isinstance(fake, AnswerModel)
@@ -297,3 +297,45 @@ def test_non_char_location_citations_are_ignored() -> None:
     }
     model, _ = model_with(message([{"type": "text", "text": "a", "citations": [page_cite]}]))
     assert model.answer("q", CHUNKS).citations == []
+
+
+HISTORY = (
+    ChatTurn(role="user", content="What does the Starter plan include?"),
+    ChatTurn(role="assistant", content="Up to 4 hours of maintenance per month."),
+)
+
+
+def test_empty_history_request_is_unchanged() -> None:
+    model_a, calls_a = model_with(CITED)
+    model_b, calls_b = model_with(CITED)
+    model_a.answer("q", CHUNKS)
+    model_b.answer("q", CHUNKS, history=())
+    assert calls_a.calls == calls_b.calls
+    assert len(calls_a.calls[0]["messages"]) == 1
+
+
+def test_chat_request_shape() -> None:
+    model, calls = model_with(CITED)
+    model.answer("How much does it cost?", CHUNKS, history=HISTORY)
+    (kwargs,) = calls.calls
+    assert not FORBIDDEN_KEYS & set(kwargs)
+    *earlier, last = kwargs["messages"]
+    assert earlier == [
+        {"role": "user", "content": "What does the Starter plan include?"},
+        {"role": "assistant", "content": "Up to 4 hours of maintenance per month."},
+    ]
+    assert all(isinstance(turn["content"], str) for turn in earlier)
+    assert last["role"] == "user"
+    assert [b["type"] for b in last["content"]] == ["document", "document", "text"]
+    assert last["content"][-1] == {"type": "text", "text": "How much does it cost?"}
+
+
+def test_system_prompt_marks_history_as_context_only() -> None:
+    assert "earlier" in SYSTEM_PROMPT.lower() and "context" in SYSTEM_PROMPT.lower()
+    assert "reasoning" not in SYSTEM_PROMPT.lower()
+
+
+def test_fake_model_records_history() -> None:
+    fake = FakeAnswerModel()
+    fake.answer("q", CHUNKS, history=list(HISTORY))
+    assert fake.calls == [("q", CHUNKS, HISTORY)]

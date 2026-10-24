@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Protocol, runtime_checkable
 
 import anthropic
 from anthropic.types.beta import (
+    BetaAssistantMessageParam,
     BetaContentBlockParam,
     BetaMessage,
     BetaMessageParam,
     BetaRequestDocumentBlockParam,
+    BetaUserMessageParam,
 )
 
 from docqa.config import Effort
@@ -22,7 +24,7 @@ from docqa.errors import (
     LLMRefusalError,
     LLMUnavailableError,
 )
-from docqa.models import Answer, Chunk, Citation
+from docqa.models import Answer, ChatTurn, Chunk, Citation
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +34,18 @@ FAKE_QUOTE_CHARS = 60
 
 SYSTEM_PROMPT = (
     "You answer questions using only the documents provided in the latest user message. "
-    "If the documents do not contain the information needed, say clearly that it was not "
-    "found in the provided documents. Be concise."
+    "Earlier messages in the conversation are context for understanding the question only, "
+    "not a source of facts. If the documents do not contain the information needed, say "
+    "clearly that it was not found in the provided documents. Be concise."
 )
 
 
 @runtime_checkable
 class AnswerModel(Protocol):
-    def answer(self, question: str, chunks: list[Chunk]) -> Answer:
-        """Answer ``question`` from ``chunks`` only, with citations into those chunks."""
+    def answer(
+        self, question: str, chunks: list[Chunk], history: Sequence[ChatTurn] = ()
+    ) -> Answer:
+        """Answer ``question`` from ``chunks`` only; ``history`` is earlier chat turns."""
         ...
 
 
@@ -48,10 +53,12 @@ class FakeAnswerModel:
     """Deterministic model for tests: records calls and cites the first chunk."""
 
     def __init__(self) -> None:
-        self.calls: list[tuple[str, list[Chunk]]] = []
+        self.calls: list[tuple[str, list[Chunk], tuple[ChatTurn, ...]]] = []
 
-    def answer(self, question: str, chunks: list[Chunk]) -> Answer:
-        self.calls.append((question, list(chunks)))
+    def answer(
+        self, question: str, chunks: list[Chunk], history: Sequence[ChatTurn] = ()
+    ) -> Answer:
+        self.calls.append((question, list(chunks), tuple(history)))
         if not chunks:
             return Answer(text="Not found in the provided documents.", citations=[], found=False)
         first = chunks[0]
@@ -82,14 +89,21 @@ class ClaudeAnswerModel:
         self.model = model
         self.effort = effort
 
-    def answer(self, question: str, chunks: list[Chunk]) -> Answer:
-        response = self._create(self._messages(question, chunks))
+    def answer(
+        self, question: str, chunks: list[Chunk], history: Sequence[ChatTurn] = ()
+    ) -> Answer:
+        response = self._create(self._messages(question, chunks, history))
         return self._parse(response, chunks)
 
-    def _messages(self, question: str, chunks: list[Chunk]) -> list[BetaMessageParam]:
+    def _messages(
+        self, question: str, chunks: list[Chunk], history: Sequence[ChatTurn]
+    ) -> list[BetaMessageParam]:
+        # Earlier turns are plain strings; documents (with citations) only in the last turn
+        # (ADR 0004): API 2026-10-21 rejects documents in assistant turns.
+        earlier = [_history_message(turn) for turn in history]
         documents: list[BetaContentBlockParam] = [_document_block(c) for c in chunks]
         content: list[BetaContentBlockParam] = [*documents, {"type": "text", "text": question}]
-        return [{"role": "user", "content": content}]
+        return [*earlier, {"role": "user", "content": content}]
 
     def _create(self, messages: list[BetaMessageParam]) -> BetaMessage:
         if self._client is None:
@@ -162,3 +176,9 @@ def _document_block(chunk: Chunk) -> BetaRequestDocumentBlockParam:
         "title": f"{chunk.source}#{chunk.id}",
         "citations": {"enabled": True},
     }
+
+
+def _history_message(turn: ChatTurn) -> BetaMessageParam:
+    if turn.role == "user":
+        return BetaUserMessageParam(role="user", content=turn.content)
+    return BetaAssistantMessageParam(role="assistant", content=turn.content)
