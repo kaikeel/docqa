@@ -85,7 +85,7 @@ auth, không OCR, không deploy (xem Out of scope).
 | `config.py` | Đọc env một chỗ | `Settings.from_env() -> Settings` (thêm `chat_max_messages`, `chat_max_chars`) |
 | `ingest.py` | Loader theo đuôi file + chunker + ghi store | `load_file(path) -> list[Page]`, `chunk_text(text, size=800, overlap=150) -> list[Span]`, `ingest_dir(store, root) -> IngestReport` |
 | `store.py` | Schema SQLite, kết nối, CRUD | `Store(path)`, `Store.replace_document(...)`, `Store.chunk_count()` |
-| `retriever.py` | Tìm kiếm | `class Retriever(Protocol): def search(self, query: str, k: int) -> list[Chunk]`; `FTS5Retriever(store, min_score)`; hằng `STOPWORDS`, hàm `content_tokens(text) -> list[str]` (dùng chung với `chat.py`) |
+| `retriever.py` | Tìm kiếm | `class Retriever(Protocol): def search(self, query: str, k: int) -> list[Chunk]`; `FTS5Retriever(store, min_coverage)` (+ `coverage(tokens, chunk_id)`); hằng `STOPWORDS`, hàm `content_tokens(text) -> list[str]` (dùng chung với `chat.py`) |
 | `llm.py` | Sinh câu trả lời có trích dẫn | `class AnswerModel(Protocol): def answer(self, question: str, chunks: list[Chunk], history: Sequence[ChatTurn] = ()) -> Answer`; `ClaudeAnswerModel(client_factory, model, effort)`; `FakeAnswerModel` |
 | `chat.py` | Logic chat thuần, không I/O | `validate_history(messages, max_messages, max_chars) -> None` (raise `ChatHistoryError`); `retrieval_queries(messages) -> list[str]` |
 | `service.py` | Gộp luồng | `DocQAService(store, retriever, model_factory, settings)`: `.ingest(dir)`, `.ask(question, k)`, `.chat(messages, k)` |
@@ -145,11 +145,16 @@ chiếu (vd "How much does it cost?") luôn được ghép ngữ cảnh. Viết 
 - SQL: `SELECT c.*, -bm25(chunks_fts) AS score FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid
   WHERE chunks_fts MATCH ? ORDER BY score DESC LIMIT ?` (FTS5 `bm25()` trả số âm, càng nhỏ càng khớp →
   đổi dấu để "lớn hơn = tốt hơn").
-- **Ngưỡng** (`DOCQA_MIN_SCORE`, mặc định **3.0**, hiệu chỉnh ở T11 — ADR 0002 mục Calibration): là **cổng
-  bằng chứng trên chunk tốt nhất** — chunk top-1 có `score < min_score` → trả `[]`; ngược lại trả đủ top-k (kể cả
-  chunk yếu hơn ngưỡng, làm ngữ cảnh). (BUILD T11: đổi từ lọc theo từng chunk, vì lọc từng chunk không thoả đồng
-  thời AC4 và kịch bản AC8 (b) trên bộ mẫu.) Bộ mẫu: hit@3 = 0.944 (17/18), 4/4 câu unanswerable ra not found.
-- Tokenizer FTS5: `unicode61 remove_diacritics 2` (chịu được tiếng Việt không dấu/có dấu cơ bản).
+- **Cổng bằng chứng** (`DOCQA_MIN_COVERAGE`, mặc định **0.5** — ADR 0007, thay ngưỡng `DOCQA_MIN_SCORE` cũ của
+  ADR 0002): tính trên **chunk top-1** tỉ lệ từ nội dung của câu hỏi có mặt trong chunk, mỗi từ có trọng số IDF
+  (`ln(1 + (N - df + 0.5)/(df + 0.5))`, từ không có trong kho có trọng số lớn nhất). `coverage < min_coverage` →
+  trả `[]`; ngược lại trả đủ top-k (kể cả chunk yếu, làm ngữ cảnh). Hiệu chỉnh trên bộ dev `examples/eval.jsonl`
+  (39 câu: hit@3 0.968, 8/8 unanswerable bị chặn), kiểm trên bộ holdout `examples/eval_holdout.jsonl` (35 câu,
+  không dùng để chỉnh: hit@3 0.833, 11/11 bị chặn).
+- Stopword gồm thêm các từ đệm câu hỏi: `long often many quickly soon get got need want know happen happens`.
+- Tokenizer FTS5: `porter unicode61 remove_diacritics 2` (stemming tiếng Anh; tiếng Việt có dấu/không dấu vẫn
+  khớp). Phiên bản schema lưu ở `PRAGMA user_version`; file index của phiên bản khác → lỗi rõ ("delete … and
+  ingest again").
 
 ### `ClaudeAnswerModel` (ràng buộc đã chốt — làm đúng nguyên văn)
 
@@ -291,7 +296,7 @@ CREATE TABLE IF NOT EXISTS chunks (
 
 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
     text, content='chunks', content_rowid='id',
-    tokenize='unicode61 remove_diacritics 2'
+    tokenize='porter unicode61 remove_diacritics 2'
 );
 
 -- Trigger đồng bộ external-content FTS5
@@ -323,7 +328,7 @@ END;
 | `DOCQA_EFFORT` | `low` | `output_config.effort` (`low`/`medium`/`high`/`xhigh`/`max`; API mặc định `medium` nếu bỏ trống — ta luôn gửi) |
 | `DOCQA_DB` | `./docqa.db` | File SQLite |
 | `DOCQA_TOP_K` | `5` | Số chunk đưa vào LLM |
-| `DOCQA_MIN_SCORE` | `3.0` (hiệu chỉnh ở T11) | Ngưỡng `-bm25` của chunk tốt nhất để coi là có bằng chứng |
+| `DOCQA_MIN_COVERAGE` | `0.5` (ADR 0007) | Tỉ lệ (0–1, trọng số IDF) từ nội dung của câu hỏi mà chunk tốt nhất phải chứa để coi là có bằng chứng |
 | `DOCQA_INGEST_ROOT` | thư mục làm việc | API chỉ cho ingest thư mục **bên trong** gốc này |
 | `DOCQA_CHAT_MAX_MESSAGES` | `20` | Số message tối đa trong một request `/chat` (≥ 1, số nguyên) |
 | `DOCQA_CHAT_MAX_CHARS` | `2000` | Độ dài tối đa mỗi message `/chat` (ký tự, sau `strip()`) |
