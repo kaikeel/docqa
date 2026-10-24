@@ -131,6 +131,11 @@ class ClaudeAnswerModel:
         except anthropic.APIConnectionError as exc:
             logger.warning("Claude API connection error: %s", type(exc).__name__)
             raise LLMUnavailableError() from None
+        except TypeError as exc:
+            # The SDK raises TypeError before sending anything when no credentials are set.
+            if "authentication method" in str(exc):
+                raise LLMAuthError() from None
+            raise
         return response
 
     def _parse(self, response: BetaMessage, chunks: list[Chunk]) -> Answer:
