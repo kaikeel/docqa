@@ -138,7 +138,7 @@ là lỗi chặn (R2-1).
 ## Kết quả lệnh đã chạy
 
 ```
-$ git clone "/Users/sine/Self company/projects/active/PF-20261025-docqa" docqa && cd docqa && git log --oneline -1
+$ git clone "<path-to-local-repo>" docqa && cd docqa && git log --oneline -1
 320f25c Merge branch 'fix/t14-status'
 $ time (UV_CACHE_DIR=<thư mục rỗng> uv sync --locked && uv run docqa ingest examples/docs && uv run docqa ask "What is the airspeed of an unladen swallow?")
  + uvicorn==0.54.0

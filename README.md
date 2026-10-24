@@ -236,7 +236,10 @@ removes `ANTHROPIC_API_KEY` and blocks network connections for the whole run.
   Assistant answers are not used for retrieval. Reference words are English only.
 - **The evidence gate is a heuristic.** It was tuned on the sample corpus; see `DOCQA_MIN_COVERAGE` above. A
   question that reuses the documents' words except for one rare word is the hardest case ("What is the price of
-  the Enterprise plan?" is rejected, but only just).
+  the Enterprise plan?" is rejected, but only just). On questions written after tuning, about one in four
+  "looks answerable but is not" questions (asking about a plan or price that does not exist) still pass the gate.
+  They then reach Claude, which is instructed to answer only from the cited passages and to say when the
+  documents do not contain the answer, so treat the gate as a cost saver, not as the only guard.
 - **Index maintenance.** Files deleted from a folder are not removed from the index in v0.1; delete the
   database file and ingest again.
 - **Languages.** Stopwords, stemming and follow-up reference words are English. Vietnamese works with or

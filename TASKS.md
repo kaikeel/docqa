@@ -90,7 +90,7 @@ Thứ tự gợi ý: T3 → T4 → T5 → T6 → T7 → T15 → T8 → T16 → T
 - **T13** (chỉ kiểm tự động, không gọi API thật — Q1): trên clone sạch ở thư mục tạm, chạy và ghi output + thời
   gian vào PR:
   ```bash
-  git clone "/Users/sine/Self company/projects/active/PF-20261025-docqa" "$TMPDIR/docqa-clean" && cd "$TMPDIR/docqa-clean"
+  git clone "<path-to-local-repo>" "$TMPDIR/docqa-clean" && cd "$TMPDIR/docqa-clean"
   time (uv sync --locked && uv run docqa ingest examples/docs && uv run docqa eval examples/eval.jsonl --retrieval-only --k 3)
   uv run docqa ask "What is the airspeed of an unladen swallow?"   # nhánh not-found: chạy không cần key, found=false
   uv run ruff check . && uv run ruff format --check . && uv run mypy src && uv run pytest
