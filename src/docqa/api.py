@@ -117,7 +117,8 @@ def _llm_error(exc: AnswerError) -> HTTPException:
     return _error(status, exc.code, str(exc))
 
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+# HEAD too, so `curl -I /` can check the security headers.
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
 def widget() -> HTMLResponse:
     """Sample chat widget (ADR 0006): same origin as the API, data rendered via textContent."""
     return HTMLResponse(WIDGET_HTML, headers=WIDGET_HEADERS)

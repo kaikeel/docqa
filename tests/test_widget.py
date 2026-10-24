@@ -120,3 +120,11 @@ def test_inline_hash_requires_the_tag() -> None:
 
     with pytest.raises(RuntimeError, match="no inline <script>"):
         api._inline_hash("<html></html>", "script")
+
+
+def test_head_root_returns_headers() -> None:
+    with TestClient(api.app) as client:
+        response = client.head("/")
+    assert response.status_code == 200
+    assert "content-security-policy" in response.headers
+    assert response.text == ""
