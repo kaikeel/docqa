@@ -53,3 +53,12 @@ class LLMRefusalError(AnswerError):
         self.category = category
         detail = f" (category: {category})" if category else ""
         super().__init__(f"The model declined to answer this question{detail}.")
+
+
+class LLMIncompleteError(AnswerError):
+    code = "llm_incomplete"
+
+    def __init__(
+        self, message: str = "The model stopped before producing an answer (max_tokens)."
+    ) -> None:
+        super().__init__(message)

@@ -59,7 +59,12 @@ def test_overrides(clean_env: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     ("name", "value"),
-    [("DOCQA_TOP_K", "abc"), ("DOCQA_TOP_K", "0"), ("DOCQA_MIN_SCORE", "nope")],
+    [
+        ("DOCQA_TOP_K", "abc"),
+        ("DOCQA_TOP_K", "0"),
+        ("DOCQA_MIN_SCORE", "nope"),
+        ("DOCQA_EFFORT", "turbo"),
+    ],
 )
 def test_invalid_values_raise_clear_error(
     clean_env: pytest.MonkeyPatch, name: str, value: str
