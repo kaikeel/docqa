@@ -34,3 +34,18 @@ Constraints from the current API and SDK (`anthropic==2.3.0`, which sends `anthr
   Acceptable: the user only affects their own answer, and the system prompt tells the model that earlier turns
   are context, not a source of truth; citations still come only from the documents of the latest turn.
 - Cost per turn grows with history; bounded by the two limits. Prompt caching is not used in v0.1.
+
+## Amendment (QA fix round 1, 2026-10-25, eng-developer)
+QA found two flaws in the validation rule above (QA #3, #4; SEC M2):
+- Lengths were measured after `strip()` but the unstripped text was sent to the model, so whitespace padding
+  bypassed the limit, and the request body itself had no size limit.
+- Assistant turns were held to `DOCQA_CHAT_MAX_CHARS` although the server itself produces answers up to
+  `max_tokens` (8192 tokens), so the widget, which sends answers back, was stuck after one long answer.
+
+New rules: every message is stripped first and the stripped text is both measured and sent
+(`chat.prepare_history`). User messages must be 1..`DOCQA_CHAT_MAX_CHARS` characters (422 otherwise). Earlier
+assistant answers are **cut** to `DOCQA_CHAT_MAX_CHARS` characters instead of being rejected: they are context
+only, and the server must never reject its own output. The widget does the same cut before keeping an answer.
+Hard caps before any parsing work: request body ≤ 256 KiB (413 `request_too_large`), at most 100 messages and
+32,000 characters per message in the schema (422); `DOCQA_CHAT_MAX_MESSAGES` ≤ 100 and
+`DOCQA_CHAT_MAX_CHARS` ≤ 32,000 are enforced at start-up.
