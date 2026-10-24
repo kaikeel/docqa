@@ -1,6 +1,7 @@
 # Technical spec — PF-20261025-docqa (Kaikeel DocQA) v0.1.0
 
-Tác giả: sol-architect · Ngày: 2026-10-25 (bổ sung chat + widget cùng ngày) · Trạng thái: SHAPE ·
+Tác giả: sol-architect · Ngày: 2026-10-25 (bổ sung chat + widget cùng ngày; cập nhật theo BUILD và vòng sửa
+QA/SEC 1) · Trạng thái: VERIFY (đã hiện thực, xem `TASKS.md`) ·
 Scope gốc: `PROJECT.md` (AC1–AC8)
 
 ## Tóm tắt giải pháp

@@ -4,7 +4,8 @@
 - Khách hàng: Kaikeel (nội bộ) · Người xem: khách tiềm năng trên Freelancer, khách SG/CN
 - Giá trị: $0 · Loại: portfolio
 - Appetite: tối đa 1 ngày công AI, ≤ 1 giờ CEO (chỉ xem demo, duyệt public)
-- Trạng thái: VERIFY (BUILD T1–T13, T15–T18 xong 2026-10-25; chờ QA + Security gate — T14)
+- Trạng thái: VERIFY — vòng sửa lỗi 1/3 xong (T19–T25, 2026-10-25) sau khi QA + Security lần 1 FAIL; chờ QA +
+  Security chạy lại (T14)
 
 ## Vấn đề (người xem portfolio muốn thấy gì)
 Khách thuê "RAG chatbot" thường nhận về bản demo chạy được một lần, trả lời bịa, không có test, không ai
@@ -50,7 +51,7 @@ tiếp quản được. Dự án này chứng minh Kaikeel làm RAG **đúng chu
 ## Milestone
 | # | Đầu ra | Giá ($) | Ngày giao | Trạng thái |
 |---|---|---|---|---|
-| 1 | v0.1.0: toàn bộ AC1–AC7, repo riêng tư trên `kaikeel` | 0 | 2026-10-26 | todo |
+| 1 | v0.1.0: toàn bộ AC1–AC8, repo riêng tư trên `kaikeel` | 0 | 2026-10-26 | todo |
 | 2 | CEO duyệt → public repo + thêm vào `08-marketing-brand/portfolio.md` | 0 | sau duyệt | todo |
 
 ## Giả định & câu hỏi còn mở
@@ -65,7 +66,7 @@ tiếp quản được. Dự án này chứng minh Kaikeel làm RAG **đúng chu
   ngay trước, không viết lại bằng LLM), 0006 (widget một file, chỉ `textContent`, CSP hash). Task T15–T18.
 - Q5 đã đóng (sol-architect, kiểm offline trên `.venv`): `anthropic==2.3.0` có `fallbacks: Literal["default"]` và
   beta `server-side-fallback-2026-07-01`, đã bỏ `temperature`/`top_p`/`top_k`, gửi `anthropic-version: 2026-10-21`.
-- Giả định: Milestone 1 (v0.1.0) gồm cả AC8 (theo Q2); bảng Milestone còn ghi "AC1–AC7" — đề nghị PMO sửa.
+- Milestone 1 (v0.1.0) gồm cả AC8 (theo Q2); bảng Milestone đã sửa thành AC1–AC8 (QA #14, vòng sửa 1).
 - Giả định: `uv` local là 0.6.3 (2025-02); nếu không đọc được `uv.lock` do CI tạo bằng bản mới thì nâng uv local
   (`brew upgrade uv`) — việc trên máy CEO, cần CEO đồng ý.
 
@@ -101,6 +102,17 @@ tiếp quản được. Dự án này chứng minh Kaikeel làm RAG **đúng chu
 - Q5: Bản `anthropic==2.3.0` cần hỗ trợ tham số `fallbacks` + beta `server-side-fallback-2026-07-01` trên
   `client.beta.messages.create`; T7 sẽ xác nhận bằng type check. Nếu SDK chưa có tham số này thì cần quyết định
   (nâng SDK / truyền qua `extra_body`) — sẽ ghi ADR, không tự đổi sang HTTP thô.
+
+## Backlog sau v0.1.0 (từ QA/SEC vòng 1, không sửa trong vòng này — đã ghi Known limitations trong README)
+- SEC L3: CVE của base image `python:3.12-slim` chưa có bản sửa; ghim digest, rebuild khi Debian có bản sửa,
+  cân nhắc `pip uninstall` trong stage runtime.
+- SEC L5: `/docs`, `/redoc`, `/openapi.json` đang bật; tắt nếu triển khai thật. (Lỗi 422 không còn lặp lại input
+  từ vòng sửa 1.)
+- QA #10: tìm kiếm tiếng Trung/Nhật/Hàn (tokenizer không tách từ CJK; cân nhắc `trigram` hoặc tokenizer riêng).
+- QA #11: `/ingest` cho phép ingest mọi thư mục con của root (vd `.venv`) vào index chung, `skipped` không giới
+  hạn; cân nhắc giới hạn danh sách và lệnh xoá theo thư mục.
+- QA #12: cảnh báo của pypdf ra stderr khi gặp PDF hỏng.
+- SEC L6: prompt injection từ tài liệu (rủi ro chấp nhận, đã ghi README).
 
 ## Rủi ro
 | Rủi ro | Khả năng | Ảnh hưởng | Xử lý |
