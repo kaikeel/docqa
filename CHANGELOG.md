@@ -22,4 +22,3 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 - Stateless `POST /chat` endpoint with the same response schema as `/ask` and 422 `chat_history_invalid` for invalid histories (T17).
 - Sample chat widget at `GET /` (single HTML file, `textContent` only) served with a hash-based Content-Security-Policy (T18).
 - `docqa eval` with retrieval-only hit@k and full-mode citation rate; `DOCQA_MIN_SCORE` calibrated to 3.0 on the sample set and applied as an evidence gate on the best match (T11).
-- A missing `ANTHROPIC_API_KEY` is reported as a clear auth error instead of a traceback (fix to T7).
