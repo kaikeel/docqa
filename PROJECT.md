@@ -60,6 +60,12 @@ tiếp quản được. Dự án này chứng minh Kaikeel làm RAG **đúng chu
 - (SHAPE, sol-architect 2026-10-25) Thiết kế ở `docs/SPEC.md`, ADR 0002 (FTS5/BM25) và 0003 (citations gốc).
   `found=true` chỉ khi retriever có bằng chứng **và** Claude trả ≥ 1 trích dẫn.
 - Giả định: CI sẽ đỏ cho tới khi T1 thêm `pyproject.toml` + `uv.lock` (CI đã chỉnh sẵn cho stack).
+- (SHAPE bổ sung, sol-architect 2026-10-25) Chat + widget thiết kế ở `docs/SPEC.md`, ADR dự án `docs/adr/` 0004 (chat stateless,
+  lịch sử text thuần, document chỉ ở lượt cuối), 0005 (truy vấn câu nối tiếp tất định: câu mới nhất + câu user
+  ngay trước, không viết lại bằng LLM), 0006 (widget một file, chỉ `textContent`, CSP hash). Task T15–T18.
+- Q5 đã đóng (sol-architect, kiểm offline trên `.venv`): `anthropic==2.3.0` có `fallbacks: Literal["default"]` và
+  beta `server-side-fallback-2026-07-01`, đã bỏ `temperature`/`top_p`/`top_k`, gửi `anthropic-version: 2026-10-21`.
+- Giả định: Milestone 1 (v0.1.0) gồm cả AC8 (theo Q2); bảng Milestone còn ghi "AC1–AC7" — đề nghị PMO sửa.
 - Giả định: `uv` local là 0.6.3 (2025-02); nếu không đọc được `uv.lock` do CI tạo bằng bản mới thì nâng uv local
   (`brew upgrade uv`) — việc trên máy CEO, cần CEO đồng ý.
 
