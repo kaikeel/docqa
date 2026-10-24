@@ -9,11 +9,15 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal, cast, get_args
 
 from docqa.errors import DocQAError
 
+Effort = Literal["low", "medium", "high", "xhigh", "max"]
+EFFORTS: tuple[str, ...] = get_args(Effort)
+
 DEFAULT_MODEL = "claude-opus-5-5"
-DEFAULT_EFFORT = "low"
+DEFAULT_EFFORT: Effort = "low"
 DEFAULT_DB = "./docqa.db"
 DEFAULT_TOP_K = 5
 # Provisional; calibrated on examples/ in T11 (see README and docs/adr/0002).
@@ -23,7 +27,7 @@ DEFAULT_MIN_SCORE = 0.0
 @dataclass(frozen=True)
 class Settings:
     model: str
-    effort: str
+    effort: Effort
     db_path: Path
     top_k: int
     min_score: float
@@ -33,7 +37,7 @@ class Settings:
     def from_env(cls) -> Settings:
         return cls(
             model=os.environ.get("DOCQA_MODEL") or DEFAULT_MODEL,
-            effort=os.environ.get("DOCQA_EFFORT") or DEFAULT_EFFORT,
+            effort=_effort(),
             db_path=Path(os.environ.get("DOCQA_DB") or DEFAULT_DB),
             top_k=_positive_int("DOCQA_TOP_K", DEFAULT_TOP_K),
             min_score=_float("DOCQA_MIN_SCORE", DEFAULT_MIN_SCORE),
@@ -62,3 +66,10 @@ def _float(name: str, default: float) -> float:
         return float(raw)
     except ValueError:
         raise DocQAError(f"{name} must be a number, got {raw!r}") from None
+
+
+def _effort() -> Effort:
+    raw = os.environ.get("DOCQA_EFFORT") or DEFAULT_EFFORT
+    if raw not in EFFORTS:
+        raise DocQAError(f"DOCQA_EFFORT must be one of {', '.join(EFFORTS)}, got {raw!r}")
+    return cast(Effort, raw)
