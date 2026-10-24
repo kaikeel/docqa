@@ -66,9 +66,19 @@ curl -s -X POST localhost:8000/chat -H 'Content-Type: application/json' -d '{"me
 ]}'
 ```
 
-Errors: `422` for invalid input (for `/chat` also `{"detail": {"code": "chat_history_invalid", "message": ...}}`
-when the history breaks a rule), `429` when the Claude API rate limit is reached, `502` for other model errors
-(missing or invalid key, refusal, unavailable), always as `{"detail": {"code", "message"}}`.
+Errors always have the shape `{"detail": {"code": "...", "message": "..."}}`:
+
+| Status | `code` | When |
+|---|---|---|
+| `400` | `path_outside_root`, `ingest_error`, `invalid_path` | `/ingest` path outside `DOCQA_INGEST_ROOT`, not a folder, or not a valid path |
+| `404` / `405` | `not_found` / `method_not_allowed` | Unknown path or wrong HTTP method |
+| `413` | `request_too_large` | Request body over 256 KiB |
+| `422` | `invalid_request` | Body does not match the schema (also lists `errors: [{"loc", "msg", "type"}]`) |
+| `422` | `chat_history_invalid` | `/chat` history breaks a rule (see below) |
+| `429` | `llm_rate_limited` | The Claude API rate limit was reached |
+| `500` | `internal_error` | Unexpected server error (details only in the server log) |
+| `502` | `llm_auth`, `llm_unavailable`, `llm_refusal`, `llm_incomplete` | Missing or invalid key, API unavailable, refusal, or no answer within `max_tokens` |
+| `503` | `index_unavailable` | `GET /health` only: the index cannot be written |
 
 ### Chat
 

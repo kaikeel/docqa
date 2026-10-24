@@ -357,11 +357,17 @@ Không có lệnh CLI cho chat (scope chỉ yêu cầu `POST /chat` + widget).
 
 | Endpoint | Request | Response 200 | Lỗi |
 |---|---|---|---|
-| `GET /health` | — | `{"status": "ok"}` | — |
+| `GET /health` | — | `{"status": "ok"}` | 503 `index_unavailable` khi index không ghi được |
+| `GET /favicon.ico` | — | 204 (không có icon) | — |
 | `GET /` | — | Widget HTML (`text/html; charset=utf-8`) + header bảo mật (xem Widget) | — |
 | `POST /ingest` | `{"path": "examples/docs"}` | `{"documents": int, "chunks": int, "skipped": [str], "unchanged": int}` | 400 `path_outside_root` (ngoài `DOCQA_INGEST_ROOT`), `ingest_error` (không phải thư mục), `invalid_path` (vd ký tự NUL) |
 | `POST /ask` | `{"question": str (1..2000 ký tự), "k": int (1..20, tuỳ chọn)}` | `{"answer": str, "citations": [{"source": str, "quote": str}], "found": bool}` | 422 validate; 429 `LLMRateLimitError`; 502 `LLMAuthError`/`LLMUnavailableError`/`LLMRefusalError`/`LLMIncompleteError` với `{"detail": {"code": "...", "message": "..."}}` |
 | `POST /chat` | `{"messages": [{"role": "user"\|"assistant", "content": str}], "k": int (1..20, tuỳ chọn)}` | **Cùng schema** với `/ask`: `{"answer", "citations": [{"source", "quote"}], "found"}` | 422 hình dạng sai (pydantic) **hoặc** vi phạm `validate_history` → `{"detail": {"code": "chat_history_invalid", "message": "..."}}`; 429/502 như `/ask` |
+
+Mọi lỗi (QA fix round 1) có dạng `{"detail": {"code", "message"}}`: 422 của pydantic → `invalid_request` (kèm
+`errors: [{loc, msg, type}]`, không lặp lại input), 404/405 → `not_found`/`method_not_allowed`, body > 256 KiB →
+413 `request_too_large`, lỗi bất ngờ → 500 `internal_error` (chi tiết chỉ ở log). API dựng service lúc khởi
+động: env sai hoặc index không mở được → server dừng với "DocQA cannot start: …".
 
 Request/response là model pydantic (đi kèm FastAPI); model request đặt `extra="forbid"`. Service lấy qua
 `Depends(get_service)` để test override bằng `FakeAnswerModel` + DB tạm. Ví dụ `/chat`:
