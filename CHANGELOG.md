@@ -15,3 +15,4 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 - BM25 retriever on SQLite FTS5 behind a `Retriever` protocol, with operator-safe query sanitising and a score threshold (T6).
 - `ClaudeAnswerModel` using Claude's native citations through the official SDK (server-side fallback beta, explicit effort), and a `FakeAnswerModel` for offline tests (T7).
 - Chat history support in the answer model: earlier turns as plain text, documents only in the latest turn (T15).
+- `DocQAService`: ingest and ask, with a not-found path that never creates the model or calls the API (T8).
