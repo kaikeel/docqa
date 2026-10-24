@@ -73,8 +73,11 @@ when the history breaks a rule), `429` when the Claude API rate limit is reached
 ### Chat
 
 `POST /chat` is stateless: the client sends the whole conversation each time and the server stores nothing.
-Rules: at most `DOCQA_CHAT_MAX_MESSAGES` messages, each at most `DOCQA_CHAT_MAX_CHARS` characters, roles
-alternate, and the first and last messages come from the user. Assistant messages are sent back as plain text.
+Rules: at most `DOCQA_CHAT_MAX_MESSAGES` messages, roles alternate, and the first and last messages come from
+the user. Messages are stripped of surrounding whitespace; each user message may then be at most
+`DOCQA_CHAT_MAX_CHARS` characters. Assistant messages are sent back as plain text, and earlier answers longer
+than `DOCQA_CHAT_MAX_CHARS` are shortened to that length rather than rejected (they are context only). Request
+bodies larger than 256 KiB get `413`.
 
 Two scenarios on the sample documents (both covered by tests with a fake model):
 
@@ -126,8 +129,8 @@ All settings are environment variables (see `.env.example`). DocQA does not load
 | `DOCQA_TOP_K` | `5` | Passages sent to Claude per question. |
 | `DOCQA_MIN_COVERAGE` | `0.5` | Share of the question (0 to 1, rare words weigh more) that the best passage must contain to count as evidence (see below). |
 | `DOCQA_INGEST_ROOT` | current directory | `POST /ingest` only accepts folders inside this directory. |
-| `DOCQA_CHAT_MAX_MESSAGES` | `20` | Maximum messages per `/chat` request. |
-| `DOCQA_CHAT_MAX_CHARS` | `2000` | Maximum characters per `/chat` message. |
+| `DOCQA_CHAT_MAX_MESSAGES` | `20` | Maximum messages per `/chat` request (at most 100). |
+| `DOCQA_CHAT_MAX_CHARS` | `2000` | Maximum characters per `/chat` user message; longer earlier answers are shortened to this length (at most 32000). |
 
 ## How it works
 

@@ -330,8 +330,8 @@ END;
 | `DOCQA_TOP_K` | `5` | Số chunk đưa vào LLM |
 | `DOCQA_MIN_COVERAGE` | `0.5` (ADR 0007) | Tỉ lệ (0–1, trọng số IDF) từ nội dung của câu hỏi mà chunk tốt nhất phải chứa để coi là có bằng chứng |
 | `DOCQA_INGEST_ROOT` | thư mục làm việc | API chỉ cho ingest thư mục **bên trong** gốc này |
-| `DOCQA_CHAT_MAX_MESSAGES` | `20` | Số message tối đa trong một request `/chat` (≥ 1, số nguyên) |
-| `DOCQA_CHAT_MAX_CHARS` | `2000` | Độ dài tối đa mỗi message `/chat` (ký tự, sau `strip()`) |
+| `DOCQA_CHAT_MAX_MESSAGES` | `20` (tối đa 100) | Số message tối đa trong một request `/chat` (≥ 1, số nguyên) |
+| `DOCQA_CHAT_MAX_CHARS` | `2000` | Độ dài tối đa mỗi message user `/chat` (ký tự, đo trên chính chuỗi đã strip sẽ gửi đi); câu trả lời assistant cũ dài hơn bị cắt còn chừng này ký tự (ADR 0004 mục Amendment). Tối đa 32 000 |
 
 Không đọc `.env` tự động bằng thư viện (không thêm `python-dotenv`, Q3); README hướng dẫn `export`/`--env-file`
 của Docker.

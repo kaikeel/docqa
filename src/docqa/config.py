@@ -23,6 +23,10 @@ DEFAULT_DB = "./docqa.db"
 DEFAULT_TOP_K = 5
 DEFAULT_CHAT_MAX_MESSAGES = 20
 DEFAULT_CHAT_MAX_CHARS = 2000
+# Hard caps enforced by the API schema before any parsing work; the DOCQA_CHAT_* limits must
+# stay within them.
+CHAT_MESSAGES_CAP = 100
+CHAT_CHARS_CAP = 32_000
 # Evidence gate (ADR 0007): share of the question (IDF-weighted) that the best passage must
 # cover. Calibrated on examples/eval.jsonl only; examples/eval_holdout.jsonl checks it.
 DEFAULT_MIN_COVERAGE = 0.5
@@ -48,12 +52,16 @@ class Settings:
             top_k=_positive_int("DOCQA_TOP_K", DEFAULT_TOP_K),
             min_coverage=_fraction("DOCQA_MIN_COVERAGE", DEFAULT_MIN_COVERAGE),
             ingest_root=Path(os.environ.get("DOCQA_INGEST_ROOT") or os.getcwd()).resolve(),
-            chat_max_messages=_positive_int("DOCQA_CHAT_MAX_MESSAGES", DEFAULT_CHAT_MAX_MESSAGES),
-            chat_max_chars=_positive_int("DOCQA_CHAT_MAX_CHARS", DEFAULT_CHAT_MAX_CHARS),
+            chat_max_messages=_positive_int(
+                "DOCQA_CHAT_MAX_MESSAGES", DEFAULT_CHAT_MAX_MESSAGES, CHAT_MESSAGES_CAP
+            ),
+            chat_max_chars=_positive_int(
+                "DOCQA_CHAT_MAX_CHARS", DEFAULT_CHAT_MAX_CHARS, CHAT_CHARS_CAP
+            ),
         )
 
 
-def _positive_int(name: str, default: int) -> int:
+def _positive_int(name: str, default: int, maximum: int | None = None) -> int:
     raw = os.environ.get(name)
     if not raw:
         return default
@@ -63,6 +71,8 @@ def _positive_int(name: str, default: int) -> int:
         raise DocQAError(f"{name} must be an integer, got {raw!r}") from None
     if value < 1:
         raise DocQAError(f"{name} must be >= 1, got {value}")
+    if maximum is not None and value > maximum:
+        raise DocQAError(f"{name} must be <= {maximum}, got {value}")
     return value
 
 

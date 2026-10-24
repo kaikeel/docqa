@@ -11,20 +11,66 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.datastructures import Headers
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from docqa import __version__
-from docqa.config import Settings
+from docqa.config import CHAT_CHARS_CAP, CHAT_MESSAGES_CAP, Settings
 from docqa.errors import AnswerError, ChatHistoryError, IngestError, LLMRateLimitError
 from docqa.models import Answer, ChatTurn
 from docqa.service import DocQAService
+
+# Largest accepted request body. A full widget request (20 messages of 2000 characters, even
+# in 3-byte UTF-8) is about 120 KiB.
+MAX_BODY_BYTES = 256 * 1024
+_TOO_LARGE = {
+    "code": "request_too_large",
+    "message": f"The request body must be at most {MAX_BODY_BYTES} bytes.",
+}
+
+
+class BodySizeLimitMiddleware:
+    """Reject request bodies over ``max_bytes`` with 413, before they are parsed (SEC M2).
+
+    Checks Content-Length up front and also counts streamed (chunked) bodies as they arrive.
+    """
+
+    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+        self.app = app
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        length = Headers(scope=scope).get("content-length", "")
+        if length.isdigit() and int(length) > self.max_bytes:
+            response = JSONResponse({"detail": _TOO_LARGE}, status_code=413)
+            await response(scope, receive, send)
+            return
+        received = 0
+
+        async def limited_receive() -> Message:
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > self.max_bytes:
+                    # FastAPI re-raises HTTPException from body reading as is.
+                    raise HTTPException(status_code=413, detail=_TOO_LARGE)
+            return message
+
+        await self.app(scope, limited_receive, send)
+
 
 app = FastAPI(
     title="Kaikeel DocQA",
     version=__version__,
     description="Answers questions from your documents, with verifiable citations.",
 )
+app.add_middleware(BodySizeLimitMiddleware, max_bytes=MAX_BODY_BYTES)
 
 
 def _inline_hash(html: str, tag: str) -> str:
@@ -69,14 +115,15 @@ class AskRequest(BaseModel):
 class ChatMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
     role: Literal["user", "assistant"]
-    content: str
+    # Hard cap; the configurable DOCQA_CHAT_MAX_CHARS (<= this) is applied by the service.
+    content: str = Field(max_length=CHAT_CHARS_CAP)
 
 
 class ChatRequest(BaseModel):
     """Shape only; limits (DOCQA_CHAT_*) and role order are checked by chat.validate_history."""
 
     model_config = ConfigDict(extra="forbid")
-    messages: list[ChatMessage]
+    messages: list[ChatMessage] = Field(max_length=CHAT_MESSAGES_CAP)
     k: int | None = Field(default=None, ge=1, le=20)
 
 

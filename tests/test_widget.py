@@ -128,3 +128,10 @@ def test_head_root_returns_headers() -> None:
     assert response.status_code == 200
     assert "content-security-policy" in response.headers
     assert response.text == ""
+
+
+def test_widget_shortens_answers_before_keeping_them_in_history() -> None:
+    # QA #3: the widget used to push the full answer into the history; the server now also
+    # shortens earlier answers itself (test_api), this keeps the requests small.
+    assert re.search(r"MAX_CHARS\s*=\s*2000\b", WIDGET)
+    assert re.search(r'role:\s*"assistant",\s*content:\s*answer\.slice\(0,\s*MAX_CHARS\)', WIDGET)

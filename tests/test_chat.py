@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from docqa.chat import REFERENCE_WORDS, retrieval_queries, validate_history
+from docqa.chat import REFERENCE_WORDS, prepare_history, retrieval_queries, validate_history
 from docqa.config import Settings
 from docqa.errors import ChatHistoryError, DocQAError
 from docqa.models import ChatTurn
@@ -87,6 +87,20 @@ def test_invalid_histories_name_the_rule(messages: list[ChatTurn], fragment: str
         validate_history(messages, max_messages=max_messages, max_chars=10)
 
 
+def test_prepare_history_strips_and_shortens_answers() -> None:
+    # What is measured is exactly what is sent: whitespace is stripped first, and earlier
+    # answers (which the server itself produced, up to max_tokens) are cut to max_chars
+    # instead of being rejected (QA #3, #4 / SEC M2).
+    prepared = prepare_history([u("  q  "), a("  " + "y" * 30), u("\n n \t")], max_chars=10)
+    assert prepared == [u("q"), a("y" * 10), u("n")]
+
+
+def test_padding_does_not_hide_a_long_user_message() -> None:
+    prepared = prepare_history([u("x" * 11 + " " * 1000)], max_chars=10)
+    with pytest.raises(ChatHistoryError, match="longer than 10"):
+        validate_history(prepared, max_messages=20, max_chars=10)
+
+
 def test_chat_history_error_code() -> None:
     assert ChatHistoryError("x").code == "chat_history_invalid"
 
@@ -103,9 +117,17 @@ def test_chat_limits_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert (s.chat_max_messages, s.chat_max_chars) == (4, 100)
 
 
-@pytest.mark.parametrize("name", ["DOCQA_CHAT_MAX_MESSAGES", "DOCQA_CHAT_MAX_CHARS"])
-def test_invalid_chat_limits(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
-    monkeypatch.setenv(name, "zero")
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("DOCQA_CHAT_MAX_MESSAGES", "zero"),
+        ("DOCQA_CHAT_MAX_CHARS", "zero"),
+        ("DOCQA_CHAT_MAX_MESSAGES", "101"),  # above the hard cap of the API schema
+        ("DOCQA_CHAT_MAX_CHARS", "32001"),
+    ],
+)
+def test_invalid_chat_limits(monkeypatch: pytest.MonkeyPatch, name: str, value: str) -> None:
+    monkeypatch.setenv(name, value)
     with pytest.raises(DocQAError, match=name):
         Settings.from_env()
 
@@ -152,3 +174,19 @@ def test_chat_single_turn_behaves_like_ask(tmp_path: Path) -> None:
     answer = service.chat([u("How long is the warranty on a fixed-price project?")], k=3)
     assert answer.citations[0].source == "warranty-policy.md"
     assert len(factory.model.calls[0][1]) <= 3
+
+
+def test_chat_sends_the_stripped_question(tmp_path: Path) -> None:
+    service, factory = make_service(tmp_path)
+    service.chat([u("How long is the warranty on a fixed-price project?" + " " * 100_000)])
+    question, _chunks, _history = factory.model.calls[0]
+    assert question == "How long is the warranty on a fixed-price project?"
+
+
+def test_long_earlier_answer_is_shortened_not_rejected(tmp_path: Path) -> None:
+    service, factory = make_service(tmp_path)
+    long_answer = "L" * 2500  # longer than DOCQA_CHAT_MAX_CHARS (2000)
+    answer = service.chat([u(Q1), a(long_answer), u("How much does it cost?")])
+    assert answer.found is True
+    _question, _chunks, history = factory.model.calls[0]
+    assert history == (u(Q1), a("L" * 2000))

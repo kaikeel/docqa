@@ -34,3 +34,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ### Fixed
 - `DOCQA_MIN_COVERAGE` values outside [0, 1], `nan` and `inf` are rejected at start-up (T19).
+- `/chat` validates the stripped text it actually sends (whitespace padding no longer bypasses the limit),
+  shortens earlier answers longer than `DOCQA_CHAT_MAX_CHARS` instead of rejecting them (the widget no longer
+  gets stuck after a long answer), and request bodies over 256 KiB get `413` (T20).
+

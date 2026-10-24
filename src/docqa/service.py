@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from docqa.chat import retrieval_queries, validate_history
+from docqa.chat import prepare_history, retrieval_queries, validate_history
 from docqa.config import Settings
 from docqa.ingest import ingest_dir
 from docqa.llm import AnswerModel, ClaudeAnswerModel
@@ -57,6 +57,7 @@ class DocQAService:
 
     def chat(self, messages: Sequence[ChatTurn], k: int | None = None) -> Answer:
         """Answer the last user message of a client-held history (ADR 0004, 0005)."""
+        messages = prepare_history(messages, self.settings.chat_max_chars)
         validate_history(messages, self.settings.chat_max_messages, self.settings.chat_max_chars)
         limit = k or self.settings.top_k
         chunks: list[Chunk] = []
