@@ -43,6 +43,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
   the read-only `/app`. Invalid settings or an index that cannot be opened now stop the API at start-up with
   "DocQA cannot start: ...", and `GET /health` returns `503 index_unavailable` when the index cannot be
   written (T22).
+- Every API error is JSON `{"detail": {"code", "message"}}`, including schema validation (`invalid_request`,
+  without echoing the input), 404/405 and unexpected 500s; `GET /favicon.ico` returns 204 (T23).
 
 ### Security
 - A symlinked file inside the ingested folder that points outside it (outside `DOCQA_INGEST_ROOT` for the API)
