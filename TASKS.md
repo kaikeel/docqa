@@ -25,6 +25,7 @@ Thiết kế: `docs/SPEC.md` · ADR: `docs/adr/` · Mỗi task một nhánh `fea
 | T14 | Chuẩn bị release: chuyển QA (`qa-reviewer`) + Security gate (`sec-devops`, `SECURITY_REPORT.md`); sau PASS → `CHANGELOG` `[0.1.0]`, tag `v0.1.0`; trình CEO checklist G3 | T13 | eng-developer → qa-reviewer, sec-devops | 0.5h | chờ QA + Security (chưa tag, chưa push) | — |
 | T19 | Sửa vòng 1 (QA #1, #13): cổng bằng chứng theo độ phủ câu hỏi có trọng số IDF (`DOCQA_MIN_COVERAGE`), porter stemming, stopword từ đệm, schema version; tách bộ dev/holdout; ADR 0007, sửa ADR 0002, đóng Q6 | T11 | eng-developer | 1.5h | done | fe86141 (nhánh `fix/evidence-gate`) |
 | T20 | Sửa vòng 1 (QA #3, #4 = SEC M2): đo đúng chuỗi gửi đi trong `/chat`, cắt câu trả lời cũ thay vì từ chối (widget cũng cắt), giới hạn body 256 KiB (413), trần schema 100 message / 32 000 ký tự; sửa ADR 0004 | T19 | eng-developer | 1h | done | 3ecebc6 (nhánh `fix/chat-limits`) |
+| T21 | Sửa vòng 1 (QA #5 = SEC M1, QA #6 = SEC L1, QA #9, QA #15): file symlink chỉ đọc nếu nằm trong root (CLI: thư mục ingest, API: `DOCQA_INGEST_ROOT`); path có NUL → 400 `invalid_path`; tài liệu khoá theo đường dẫn tuyệt đối (schema 3); `document_sha` giữ lock | T20 | eng-developer | 1h | done | 78d6f12 (nhánh `fix/ingest-paths`) |
 
 Tổng ước lượng Eng: 14.5h công AI (chưa gồm QA + Security gate). Chat + widget thêm 3.5h (T15–T18, T12 +0.5h),
 đã được chấp nhận ở Q2.

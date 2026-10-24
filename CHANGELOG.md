@@ -37,4 +37,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 - `/chat` validates the stripped text it actually sends (whitespace padding no longer bypasses the limit),
   shortens earlier answers longer than `DOCQA_CHAT_MAX_CHARS` instead of rejecting them (the widget no longer
   gets stuck after a long answer), and request bodies over 256 KiB get `413` (T20).
+- `POST /ingest` with an invalid path (for example an embedded NUL) returns `400 invalid_path` instead of 500;
+  files with the same relative name in two ingested folders no longer overwrite each other (T21).
 
+### Security
+- A symlinked file inside the ingested folder that points outside it (outside `DOCQA_INGEST_ROOT` for the API)
+  is skipped as "symlink outside root" instead of being indexed (T21).

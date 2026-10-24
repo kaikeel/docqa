@@ -136,7 +136,9 @@ All settings are environment variables (see `.env.example`). DocQA does not load
 
 1. **Ingest.** Files are split into overlapping passages of up to 800 characters (150 overlap, cut at
    whitespace; PDFs page by page) and stored in SQLite with an FTS5 full-text index. Re-ingesting skips files
-   whose content hash has not changed and replaces the passages of files that have.
+   whose content hash has not changed and replaces the passages of files that have. Hidden files and folders
+   are skipped, symlinked folders are not followed, and a symlinked file is read only if it points inside the
+   folder being ingested (for `POST /ingest`: inside `DOCQA_INGEST_ROOT`).
 2. **Retrieve.** The question is reduced to its content words (stopwords and FTS5 operators removed, English
    word forms stemmed so "plans" matches "plan") and ranked with BM25. Then an evidence gate checks how much of
    the question the best passage covers: the share of the question's words found in it, each weighted by how

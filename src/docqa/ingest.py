@@ -108,32 +108,42 @@ def _load_pdf(path: Path) -> list[Page]:
     return pages
 
 
-def ingest_dir(store: Store, root: Path) -> IngestReport:
+def ingest_dir(store: Store, root: Path, allowed_root: Path | None = None) -> IngestReport:
     """Index every supported file under ``root`` (recursively, in sorted order).
 
-    Hidden files and directories are skipped. A file whose SHA-256 is unchanged is left as is;
-    a changed file has all its chunks replaced in one transaction. Files that disappeared from
-    ``root`` are not removed from the index (v0.1).
+    Hidden files and directories are skipped. Symlinked directories are not followed; a
+    symlinked file is read only if its target lies inside ``allowed_root`` (default: ``root``
+    itself), so a link cannot pull in files from elsewhere on the machine. Documents are
+    keyed by their resolved path: equal relative names in different folders do not collide.
+    A file whose SHA-256 is unchanged is left as is; a changed file has all its chunks
+    replaced in one transaction. Files that disappeared from ``root`` are not removed from
+    the index (v0.1).
     """
     if not root.is_dir():
         raise IngestError(f"{root} is not a directory")
+    boundary = (allowed_root or root).resolve()
     documents = chunks = unchanged = 0
     skipped: list[str] = []
     for path, rel in _walk(root, skipped):
+        resolved = path.resolve()
+        if not resolved.is_relative_to(boundary):
+            skipped.append(f"{rel}: symlink outside root")
+            continue
+        key = str(resolved)
         try:
-            data = path.read_bytes()
+            data = resolved.read_bytes()
             sha = hashlib.sha256(data).hexdigest()
-            if store.document_sha(rel) == sha:
+            if store.document_sha(key) == sha:
                 unchanged += 1
                 continue
-            new_chunks = _chunks_for(load_file(path))
+            new_chunks = _chunks_for(load_file(resolved))
         except IngestError as exc:
             skipped.append(f"{rel}: {exc}")
             continue
         except OSError as exc:
             skipped.append(f"{rel}: unreadable ({type(exc).__name__})")
             continue
-        store.replace_document(rel, sha, new_chunks)
+        store.replace_document(rel, sha, new_chunks, path=key)
         documents += 1
         chunks += len(new_chunks)
     return IngestReport(

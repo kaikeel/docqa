@@ -176,3 +176,59 @@ def test_database_from_an_older_version_fails_clearly(tmp_path: Path) -> None:
     conn.close()
     with pytest.raises(DocQAError, match=r"delete .*old\.db.* and ingest again"):
         Store(path)
+
+
+# --- symlinks, duplicate names, locking (QA #5 = SEC M1, QA #9, QA #15) -----------------
+
+
+def test_file_symlink_pointing_outside_root_is_skipped(store: Store, tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.md").write_text("TOPSECRET hunter2", "utf-8")
+    root = tmp_path / "docs"
+    root.mkdir()
+    (root / "a.md").write_text("alpha pineapples", "utf-8")
+    (root / "link.md").symlink_to(outside / "secret.md")
+    report = ingest_dir(store, root)
+    assert report.documents == 1
+    assert report.skipped == ["link.md: symlink outside root"]
+    assert fts_hits(store, "topsecret") == 0
+
+
+def test_file_symlink_inside_allowed_root_is_ingested(store: Store, tmp_path: Path) -> None:
+    (tmp_path / "shared").mkdir()
+    (tmp_path / "shared" / "common.md").write_text("shared bananas", "utf-8")
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "common.md").symlink_to(tmp_path / "shared" / "common.md")
+    # Outside the folder being ingested, but inside the allowed root (the API's ingest root).
+    assert ingest_dir(store, docs).skipped == ["common.md: symlink outside root"]
+    report = ingest_dir(store, docs, allowed_root=tmp_path)
+    assert (report.documents, report.skipped) == (1, [])
+    assert fts_hits(store, "bananas") == 1
+
+
+def test_same_relative_name_in_two_folders_keeps_both(store: Store, tmp_path: Path) -> None:
+    for folder, text in (("one", "first warranty pineapples"), ("two", "second warranty mangoes")):
+        (tmp_path / folder).mkdir()
+        (tmp_path / folder / "warranty.md").write_text(text, "utf-8")
+    ingest_dir(store, tmp_path / "one")
+    ingest_dir(store, tmp_path / "two")
+    assert store.document_count() == 2
+    assert fts_hits(store, "pineapples") == 1 and fts_hits(store, "mangoes") == 1
+    again = ingest_dir(store, tmp_path / "one")
+    assert (again.documents, again.unchanged) == (0, 1)
+
+
+def test_document_sha_holds_the_lock(store: Store) -> None:
+    import threading
+
+    store.replace_document("a.md", "h1", [NewChunk(0, 0, 1, None, "a")])
+    result: list[str | None] = []
+    with store.lock:
+        worker = threading.Thread(target=lambda: result.append(store.document_sha("a.md")))
+        worker.start()
+        worker.join(timeout=0.2)
+        assert worker.is_alive()  # blocked while another thread holds the lock
+    worker.join(timeout=5)
+    assert result == ["h1"]

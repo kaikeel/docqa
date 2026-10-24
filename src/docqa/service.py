@@ -46,8 +46,8 @@ class DocQAService:
 
         return cls(store, retriever, model_factory or claude, settings)
 
-    def ingest(self, root: Path) -> IngestReport:
-        return ingest_dir(self.store, root)
+    def ingest(self, root: Path, allowed_root: Path | None = None) -> IngestReport:
+        return ingest_dir(self.store, root, allowed_root)
 
     def ask(self, question: str, k: int | None = None) -> Answer:
         chunks = self.retriever.search(question, k or self.settings.top_k)

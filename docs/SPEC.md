@@ -83,7 +83,7 @@ auth, không OCR, không deploy (xem Out of scope).
 | `models.py` | Dataclass bất biến (`frozen=True`) | `Chunk`, `Citation`, `Answer`, `IngestReport`, `ChatTurn` (mới) |
 | `errors.py` | Lỗi miền, thông điệp rõ cho người dùng | `DocQAError` ← `IngestError`, `ChatHistoryError` (mới), `AnswerError` ← `LLMAuthError`, `LLMRateLimitError`, `LLMUnavailableError`, `LLMRefusalError`, `LLMIncompleteError` (mới) |
 | `config.py` | Đọc env một chỗ | `Settings.from_env() -> Settings` (thêm `chat_max_messages`, `chat_max_chars`) |
-| `ingest.py` | Loader theo đuôi file + chunker + ghi store | `load_file(path) -> list[Page]`, `chunk_text(text, size=800, overlap=150) -> list[Span]`, `ingest_dir(store, root) -> IngestReport` |
+| `ingest.py` | Loader theo đuôi file + chunker + ghi store | `load_file(path) -> list[Page]`, `chunk_text(text, size=800, overlap=150) -> list[Span]`, `ingest_dir(store, root, allowed_root=None) -> IngestReport` |
 | `store.py` | Schema SQLite, kết nối, CRUD | `Store(path)`, `Store.replace_document(...)`, `Store.chunk_count()` |
 | `retriever.py` | Tìm kiếm | `class Retriever(Protocol): def search(self, query: str, k: int) -> list[Chunk]`; `FTS5Retriever(store, min_coverage)` (+ `coverage(tokens, chunk_id)`); hằng `STOPWORDS`, hàm `content_tokens(text) -> list[str]` (dùng chung với `chat.py`) |
 | `llm.py` | Sinh câu trả lời có trích dẫn | `class AnswerModel(Protocol): def answer(self, question: str, chunks: list[Chunk], history: Sequence[ChatTurn] = ()) -> Answer`; `ClaudeAnswerModel(client_factory, model, effort)`; `FakeAnswerModel` |
@@ -261,7 +261,8 @@ class Answer:
 class IngestReport:
     documents: int
     chunks: int
-    skipped: list[str]  # file lỗi/rỗng/không hỗ trợ, kèm lý do ngắn
+    skipped: list[str]  # file lỗi/rỗng/không hỗ trợ/symlink ra ngoài, kèm lý do ngắn
+    unchanged: int = 0  # file có sha256 không đổi, được bỏ qua
 
 @dataclass(frozen=True)
 class ChatTurn:              # mới (chat)
@@ -278,7 +279,8 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS documents (
     id          INTEGER PRIMARY KEY,
-    source      TEXT NOT NULL UNIQUE,      -- đường dẫn tương đối
+    path        TEXT NOT NULL UNIQUE,      -- đường dẫn tuyệt đối đã resolve: khoá của tài liệu (schema 3)
+    source      TEXT NOT NULL,             -- đường dẫn tương đối so với thư mục ingest, hiển thị trong trích dẫn
     sha256      TEXT NOT NULL,             -- bỏ qua nếu không đổi khi ingest lại
     ingested_at TEXT NOT NULL              -- ISO-8601 UTC
 );
@@ -316,6 +318,11 @@ END;
   `skipped` nếu cả file rỗng ("no extractable text — OCR not supported").
 - Đọc text với UTF-8 (`errors="replace"`); bỏ qua file ẩn và đuôi không hỗ trợ; duyệt đệ quy, thứ tự sắp xếp
   tất định.
+- Symlink (QA fix round 1, SEC M1): thư mục symlink không được duyệt (`os.walk` mặc định); file symlink chỉ được
+  đọc nếu `resolve()` nằm trong `allowed_root` (CLI: chính thư mục ingest; API: `DOCQA_INGEST_ROOT`), ngược lại
+  ghi `skipped` "symlink outside root".
+- Tài liệu được khoá theo đường dẫn tuyệt đối đã resolve (`documents.path`), nên hai thư mục có file trùng tên
+  tương đối không ghi đè nhau (QA #9); trích dẫn vẫn hiện tên tương đối.
 
 ## API / giao diện
 
@@ -352,7 +359,7 @@ Không có lệnh CLI cho chat (scope chỉ yêu cầu `POST /chat` + widget).
 |---|---|---|---|
 | `GET /health` | — | `{"status": "ok"}` | — |
 | `GET /` | — | Widget HTML (`text/html; charset=utf-8`) + header bảo mật (xem Widget) | — |
-| `POST /ingest` | `{"path": "examples/docs"}` | `{"documents": int, "chunks": int, "skipped": [str]}` | 400 path ngoài `DOCQA_INGEST_ROOT` hoặc không tồn tại |
+| `POST /ingest` | `{"path": "examples/docs"}` | `{"documents": int, "chunks": int, "skipped": [str], "unchanged": int}` | 400 `path_outside_root` (ngoài `DOCQA_INGEST_ROOT`), `ingest_error` (không phải thư mục), `invalid_path` (vd ký tự NUL) |
 | `POST /ask` | `{"question": str (1..2000 ký tự), "k": int (1..20, tuỳ chọn)}` | `{"answer": str, "citations": [{"source": str, "quote": str}], "found": bool}` | 422 validate; 429 `LLMRateLimitError`; 502 `LLMAuthError`/`LLMUnavailableError`/`LLMRefusalError`/`LLMIncompleteError` với `{"detail": {"code": "...", "message": "..."}}` |
 | `POST /chat` | `{"messages": [{"role": "user"\|"assistant", "content": str}], "k": int (1..20, tuỳ chọn)}` | **Cùng schema** với `/ask`: `{"answer", "citations": [{"source", "quote"}], "found"}` | 422 hình dạng sai (pydantic) **hoặc** vi phạm `validate_history` → `{"detail": {"code": "chat_history_invalid", "message": "..."}}`; 429/502 như `/ask` |
 
