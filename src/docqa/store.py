@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -61,8 +62,10 @@ class Store:
         self.path = Path(path)
         if str(path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
-        # FastAPI runs sync endpoints in a thread pool; access is serialised per request.
+        # FastAPI runs sync endpoints in a thread pool, so one connection is shared across
+        # threads; every use of it must hold ``lock``.
         self.conn = sqlite3.connect(str(path), check_same_thread=False)
+        self.lock = threading.RLock()
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
 
@@ -88,7 +91,7 @@ class Store:
 
     def replace_document(self, source: str, sha256: str, chunks: list[NewChunk]) -> None:
         """Delete any previous version of ``source`` and insert the new one in one transaction."""
-        with self.conn:
+        with self.lock, self.conn:
             self.conn.execute(
                 "DELETE FROM chunks WHERE document_id IN "
                 "(SELECT id FROM documents WHERE source = ?)",
@@ -107,7 +110,9 @@ class Store:
             )
 
     def chunk_count(self) -> int:
-        return int(self.conn.execute("SELECT count(*) FROM chunks").fetchone()[0])
+        with self.lock:
+            return int(self.conn.execute("SELECT count(*) FROM chunks").fetchone()[0])
 
     def document_count(self) -> int:
-        return int(self.conn.execute("SELECT count(*) FROM documents").fetchone()[0])
+        with self.lock:
+            return int(self.conn.execute("SELECT count(*) FROM documents").fetchone()[0])

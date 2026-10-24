@@ -68,7 +68,8 @@ class FTS5Retriever:
         tokens = content_tokens(query)
         if not tokens or k < 1:
             return []
-        rows = self.store.conn.execute(_SEARCH_SQL, (to_match_expression(tokens), k)).fetchall()
+        with self.store.lock:
+            rows = self.store.conn.execute(_SEARCH_SQL, (to_match_expression(tokens), k)).fetchall()
         return [
             Chunk(
                 id=row["id"],

@@ -132,3 +132,25 @@ def test_unreadable_file_is_skipped(store: Store, tmp_path: Path) -> None:
     finally:
         locked.chmod(0o644)
     assert report.skipped == ["locked.md: unreadable (PermissionError)"]
+
+
+def test_concurrent_search_and_ingest_are_safe(store: Store, tmp_path: Path) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    from docqa.retriever import FTS5Retriever
+
+    root = tmp_path / "docs"
+    make_corpus(root)
+    retriever = FTS5Retriever(store, min_score=0.0)
+
+    def work(i: int) -> None:
+        for _ in range(30):
+            if i == 0:
+                (root / "a.md").write_text(f"pineapples version {_}", "utf-8")
+                ingest_dir(store, root)
+            retriever.search("pineapples bananas", k=3)
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        list(pool.map(work, range(6)))
+    assert store.document_count() == 3
+    assert hasattr(store, "lock")
