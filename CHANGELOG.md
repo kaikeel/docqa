@@ -51,4 +51,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
   is skipped as "symlink outside root" instead of being indexed (T21).
 - The Docker image is multi-stage and no longer contains uv or its download cache; the README publishes the
   port on `127.0.0.1` only (T22).
+- GitHub Actions are pinned to full commit SHAs (tag in a comment) and updated by Dependabot (T24).
+
 
