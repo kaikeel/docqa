@@ -5,6 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-25
+
 ### Added
 - Project scaffold: uv-managed Python 3.12 package `docqa`, ruff, mypy (strict), pytest with an
   80% coverage gate, and a test guard that blocks real API clients and network access (T1).
