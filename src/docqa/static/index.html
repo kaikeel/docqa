@@ -12,6 +12,8 @@
   h1 { font-size: 18px; margin: 0 0 4px; }
   .lead { color: var(--muted); margin: 0 0 16px; }
   #log { flex: 1; display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+  .suggestions button { background: #fff; color: var(--accent); border: 1px solid #c9d6f7; padding: 6px 12px; font-size: 14px; }
   .msg { padding: 10px 14px; border-radius: 10px; background: #fff; border: 1px solid var(--line); white-space: pre-wrap; }
   .msg.user { align-self: flex-end; background: #e8eefc; border-color: #c9d6f7; max-width: 85%; }
   .msg.assistant { align-self: flex-start; max-width: 100%; }
@@ -30,6 +32,11 @@
 <main>
   <h1>Kaikeel DocQA</h1>
   <p class="lead">Ask about the indexed documents. Every answer lists the passages it is based on.</p>
+  <div id="suggestions" class="suggestions" aria-label="Example questions">
+    <button type="button" data-question="What is the warranty?">What is the warranty?</button>
+    <button type="button" data-question="What support plans do you have?">What support plans do you have?</button>
+    <button type="button" data-question="How do you handle incidents?">How do you handle incidents?</button>
+  </div>
   <div id="log" aria-live="polite"></div>
   <form id="ask-form" autocomplete="off">
     <label for="question" hidden>Question</label>
@@ -109,6 +116,13 @@
       input.focus();
     }
   }
+
+  // Example questions for the sample documents (examples/docs); edit them for your own.
+  document.getElementById("suggestions").addEventListener("click", function (event) {
+    var suggestion = event.target.closest("button[data-question]");
+    if (!suggestion || send.disabled) { return; }
+    ask(suggestion.getAttribute("data-question"));
+  });
 
   form.addEventListener("submit", function (event) {
     event.preventDefault();

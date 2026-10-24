@@ -5,6 +5,7 @@ import hashlib
 import re
 from html.parser import HTMLParser
 from importlib.resources import files
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -135,3 +136,15 @@ def test_widget_shortens_answers_before_keeping_them_in_history() -> None:
     # shortens earlier answers itself (test_api), this keeps the requests small.
     assert re.search(r"MAX_CHARS\s*=\s*2000\b", WIDGET)
     assert re.search(r'role:\s*"assistant",\s*content:\s*answer\.slice\(0,\s*MAX_CHARS\)', WIDGET)
+
+
+def test_suggested_questions_are_answerable_on_the_sample_docs(tmp_path: Path) -> None:
+    from tests.helpers import make_service
+
+    c = parsed()
+    suggestions = [v for tag, name, v in c.attrs if tag == "button" and name == "data-question"]
+    assert len(suggestions) >= 3
+    assert "suggestion" in c.inline["script"][0]  # wired up in the script, no inline handlers
+    service, _ = make_service(tmp_path)
+    for question in suggestions:
+        assert question and service.ask(question).found is True, question
