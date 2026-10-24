@@ -12,3 +12,4 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 - Loaders for `.md`, `.txt` and `.pdf` (per page) and an overlapping, word-boundary-aware chunker (T3).
 - SQLite store with an FTS5 index and idempotent, hash-based directory ingest (T4).
 - Fictional, publishable sample corpus "Kaikeel Handbook Lite" (10 files including a PDF and two support plans for follow-up chat scenarios) and a 22-question eval set (T5).
+- BM25 retriever on SQLite FTS5 behind a `Retriever` protocol, with operator-safe query sanitising and a score threshold (T6).
