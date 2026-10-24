@@ -77,6 +77,16 @@ tiếp quản được. Dự án này chứng minh Kaikeel làm RAG **đúng chu
   (AC1, phần thời gian của AC6) chuyển thành mục **CEO tự chạy khi xem demo ở G3 nội bộ**, bằng key của CEO.
 - Q2 → Giữ nguyên scope và thêm chế độ chat (ADR 0007); chấp nhận vượt appetite về giờ công AI (không phải tiền).
 
+### Câu hỏi còn mở (BUILD, eng-developer 2026-10-25)
+- Q6 (SPEC retriever, ADR 0002 — cần sol-architect xác nhận): ngưỡng `DOCQA_MIN_SCORE` được làm thành **cổng
+  bằng chứng trên chunk tốt nhất** thay vì lọc từng chunk, vì lọc từng chunk không thoả đồng thời AC4 (mọi câu
+  unanswerable → not found; câu mạnh nhất đạt 2.67) và AC8 kịch bản (b) (chunk Pro chỉ đạt 2.49). Đã ghi vào SPEC
+  và ADR 0002 mục Calibration; nếu không đồng ý thì phương án thay là sửa tài liệu mẫu, không đổi code service.
+- Q7 (T14, Q4): TASKS T14 mới ghi "push repo private `kaikeel/docqa`", nhưng phiên BUILD được giao kèm ràng buộc
+  "không push, không tạo repo GitHub". Chưa push; việc push để lại cho bước sau QA + Security theo Q4.
+- Q8 (board): không tìm thấy issue dự án docqa trên `kaikeel/ops` nên chưa comment "T<n> done" lên board; cần
+  PMO tạo issue (`ops.py project add`) nếu muốn theo dõi trên board.
+
 ### Câu hỏi còn mở (lịch sử)
 - Q1 (AC1, AC6 — T13): Kiểm thủ công với API thật cần `ANTHROPIC_API_KEY`. Dùng key nào (key công ty của
   CEO?), ai chạy (eng-developer trong phiên có key, hay CEO tự chạy khi xem demo)? Chi phí dự kiến rất nhỏ

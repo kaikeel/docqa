@@ -145,8 +145,10 @@ chiếu (vd "How much does it cost?") luôn được ghép ngữ cảnh. Viết 
 - SQL: `SELECT c.*, -bm25(chunks_fts) AS score FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid
   WHERE chunks_fts MATCH ? ORDER BY score DESC LIMIT ?` (FTS5 `bm25()` trả số âm, càng nhỏ càng khớp →
   đổi dấu để "lớn hơn = tốt hơn").
-- **Ngưỡng**: giữ chunk có `score >= min_score` (`DOCQA_MIN_SCORE`, mặc định hiệu chỉnh ở T11 trên bộ mẫu
-  sao cho hit@3 ≥ 0.8 và mọi câu "unanswerable" trong `eval.jsonl` ra `found=false`; giá trị ghi vào README).
+- **Ngưỡng** (`DOCQA_MIN_SCORE`, mặc định **3.0**, hiệu chỉnh ở T11 — ADR 0002 mục Calibration): là **cổng
+  bằng chứng trên chunk tốt nhất** — chunk top-1 có `score < min_score` → trả `[]`; ngược lại trả đủ top-k (kể cả
+  chunk yếu hơn ngưỡng, làm ngữ cảnh). (BUILD T11: đổi từ lọc theo từng chunk, vì lọc từng chunk không thoả đồng
+  thời AC4 và kịch bản AC8 (b) trên bộ mẫu.) Bộ mẫu: hit@3 = 0.944 (17/18), 4/4 câu unanswerable ra not found.
 - Tokenizer FTS5: `unicode61 remove_diacritics 2` (chịu được tiếng Việt không dấu/có dấu cơ bản).
 
 ### `ClaudeAnswerModel` (ràng buộc đã chốt — làm đúng nguyên văn)
@@ -321,7 +323,7 @@ END;
 | `DOCQA_EFFORT` | `low` | `output_config.effort` (`low`/`medium`/`high`/`xhigh`/`max`; API mặc định `medium` nếu bỏ trống — ta luôn gửi) |
 | `DOCQA_DB` | `./docqa.db` | File SQLite |
 | `DOCQA_TOP_K` | `5` | Số chunk đưa vào LLM |
-| `DOCQA_MIN_SCORE` | hiệu chỉnh ở T11 | Ngưỡng `-bm25` để coi là có bằng chứng |
+| `DOCQA_MIN_SCORE` | `3.0` (hiệu chỉnh ở T11) | Ngưỡng `-bm25` của chunk tốt nhất để coi là có bằng chứng |
 | `DOCQA_INGEST_ROOT` | thư mục làm việc | API chỉ cho ingest thư mục **bên trong** gốc này |
 | `DOCQA_CHAT_MAX_MESSAGES` | `20` | Số message tối đa trong một request `/chat` (≥ 1, số nguyên) |
 | `DOCQA_CHAT_MAX_CHARS` | `2000` | Độ dài tối đa mỗi message `/chat` (ký tự, sau `strip()`) |
