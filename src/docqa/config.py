@@ -1,0 +1,64 @@
+"""Runtime settings, read from environment variables in one place.
+
+The Anthropic API key is deliberately not part of Settings: the official SDK reads
+ANTHROPIC_API_KEY from the environment itself, so the key never passes through DocQA code.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+from docqa.errors import DocQAError
+
+DEFAULT_MODEL = "claude-opus-5-5"
+DEFAULT_EFFORT = "low"
+DEFAULT_DB = "./docqa.db"
+DEFAULT_TOP_K = 5
+# Provisional; calibrated on examples/ in T11 (see README and docs/adr/0002).
+DEFAULT_MIN_SCORE = 0.0
+
+
+@dataclass(frozen=True)
+class Settings:
+    model: str
+    effort: str
+    db_path: Path
+    top_k: int
+    min_score: float
+    ingest_root: Path
+
+    @classmethod
+    def from_env(cls) -> Settings:
+        return cls(
+            model=os.environ.get("DOCQA_MODEL") or DEFAULT_MODEL,
+            effort=os.environ.get("DOCQA_EFFORT") or DEFAULT_EFFORT,
+            db_path=Path(os.environ.get("DOCQA_DB") or DEFAULT_DB),
+            top_k=_positive_int("DOCQA_TOP_K", DEFAULT_TOP_K),
+            min_score=_float("DOCQA_MIN_SCORE", DEFAULT_MIN_SCORE),
+            ingest_root=Path(os.environ.get("DOCQA_INGEST_ROOT") or os.getcwd()).resolve(),
+        )
+
+
+def _positive_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        raise DocQAError(f"{name} must be an integer, got {raw!r}") from None
+    if value < 1:
+        raise DocQAError(f"{name} must be >= 1, got {value}")
+    return value
+
+
+def _float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        raise DocQAError(f"{name} must be a number, got {raw!r}") from None
