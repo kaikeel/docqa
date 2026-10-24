@@ -48,6 +48,26 @@ tiếp quản được. Dự án này chứng minh Kaikeel làm RAG **đúng chu
 - Model mặc định `claude-opus-5-5`, đổi qua biến `DOCQA_MODEL`. Bật server-side fallback khi bị từ chối.
 - Chạy demo thật cần `ANTHROPIC_API_KEY` của người chạy; CI không gọi API.
 - Python 3.12, quản lý bằng `uv`.
+- (SHAPE, sol-architect 2026-10-25) Thiết kế ở `docs/SPEC.md`, ADR 0002 (FTS5/BM25) và 0003 (citations gốc).
+  `found=true` chỉ khi retriever có bằng chứng **và** Claude trả ≥ 1 trích dẫn.
+- Giả định: CI sẽ đỏ cho tới khi T1 thêm `pyproject.toml` + `uv.lock` (CI đã chỉnh sẵn cho stack).
+- Giả định: `uv` local là 0.6.3 (2025-02); nếu không đọc được `uv.lock` do CI tạo bằng bản mới thì nâng uv local
+  (`brew upgrade uv`) — việc trên máy CEO, cần CEO đồng ý.
+
+### Câu hỏi còn mở
+- Q1 (AC1, AC6 — T13): Kiểm thủ công với API thật cần `ANTHROPIC_API_KEY`. Dùng key nào (key công ty của
+  CEO?), ai chạy (eng-developer trong phiên có key, hay CEO tự chạy khi xem demo)? Chi phí dự kiến rất nhỏ
+  (vài lời gọi), nhưng là thao tác liên quan tiền → cần CEO xác nhận.
+- Q2 (appetite): Tổng ước lượng Eng là 11 giờ công AI (14 task, chưa gồm QA + Security). Nếu "1 ngày công AI"
+  = 8 giờ thì vượt ~3 giờ. Đề xuất giữ nguyên scope, chấp nhận vượt nhẹ; nếu phải cắt thì bỏ chế độ eval đầy
+  đủ (`citation_rate`) trước — chờ PMO/CEO quyết.
+- Q3: Có cần tự đọc file `.env` (thêm `python-dotenv`) không? SPEC hiện chọn không (chỉ biến môi trường thật,
+  Docker dùng `--env-file`) để giữ phụ thuộc tối thiểu.
+- Q4: Bước tạo repo private trên org `kaikeel` và push (Milestone 1) do ai thực hiện và khi nào? SHAPE/BUILD
+  không push.
+- Q5: Bản `anthropic==2.3.0` cần hỗ trợ tham số `fallbacks` + beta `server-side-fallback-2026-07-01` trên
+  `client.beta.messages.create`; T7 sẽ xác nhận bằng type check. Nếu SDK chưa có tham số này thì cần quyết định
+  (nâng SDK / truyền qua `extra_body`) — sẽ ghi ADR, không tự đổi sang HTTP thô.
 
 ## Rủi ro
 | Rủi ro | Khả năng | Ảnh hưởng | Xử lý |
