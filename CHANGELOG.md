@@ -18,3 +18,4 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 - `DocQAService`: ingest and ask, with a not-found path that never creates the model or calls the API (T8).
 - Stateless chat core: history validation, deterministic follow-up retrieval queries and `DocQAService.chat` (T16).
 - CLI commands `docqa ingest` and `docqa ask` (`--k`, `--db`, `--json`) with documented exit codes (T9).
+- HTTP API: `GET /health`, `POST /ingest` (restricted to `DOCQA_INGEST_ROOT`) and `POST /ask` with 429/502 error mapping (T10).
