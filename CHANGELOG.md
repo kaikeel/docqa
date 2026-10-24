@@ -39,7 +39,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
   gets stuck after a long answer), and request bodies over 256 KiB get `413` (T20).
 - `POST /ingest` with an invalid path (for example an embedded NUL) returns `400 invalid_path` instead of 500;
   files with the same relative name in two ingested folders no longer overwrite each other (T21).
+- Docker with `--env-file .env` (copied from `.env.example`) works: the example no longer points `DOCQA_DB` at
+  the read-only `/app`. Invalid settings or an index that cannot be opened now stop the API at start-up with
+  "DocQA cannot start: ...", and `GET /health` returns `503 index_unavailable` when the index cannot be
+  written (T22).
 
 ### Security
 - A symlinked file inside the ingested folder that points outside it (outside `DOCQA_INGEST_ROOT` for the API)
   is skipped as "symlink outside root" instead of being indexed (T21).
+- The Docker image is multi-stage and no longer contains uv or its download cache; the README publishes the
+  port on `127.0.0.1` only (T22).
+
