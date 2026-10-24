@@ -136,3 +136,92 @@ def test_get_service_builds_from_env(tmp_path: Path, monkeypatch: pytest.MonkeyP
         assert api.get_service() is service
     finally:
         api.get_service.cache_clear()
+
+
+# --- POST /chat (AC8) -----------------------------------------------------------------
+
+Q1 = {"role": "user", "content": "What does the Starter plan include?"}
+A1 = {"role": "assistant", "content": "Up to 4 hours of maintenance per month."}
+
+
+def test_chat_found_schema_and_history(client: TestClient, service: DocQAService) -> None:
+    body = {"messages": [Q1, A1, {"role": "user", "content": "How much does it cost?"}]}
+    response = client.post("/chat", json=body)
+    assert response.status_code == 200
+    data = response.json()
+    assert set(data) == {"answer", "citations", "found"}
+    assert data["found"] is True
+    assert data["citations"][0]["source"] == "support-plan-starter.md"
+    assert isinstance(service.model_factory, CountingFactory)
+    _question, _chunks, history = service.model_factory.model.calls[0]
+    assert history == (ChatTurn(**Q1), ChatTurn(**A1))  # type: ignore[arg-type]
+
+
+def test_chat_not_found_schema(client: TestClient, service: DocQAService) -> None:
+    response = client.post("/chat", json={"messages": [{"role": "user", "content": "zeppelins"}]})
+    assert response.status_code == 200
+    assert response.json() == {
+        "answer": "Not found in the provided documents.",
+        "citations": [],
+        "found": False,
+    }
+    assert isinstance(service.model_factory, CountingFactory)
+    assert service.model_factory.calls == 0
+
+
+def _with_limits(service: DocQAService, messages: int = 20, chars: int = 2000) -> None:
+    from dataclasses import replace
+
+    service.settings = replace(service.settings, chat_max_messages=messages, chat_max_chars=chars)
+
+
+@pytest.mark.parametrize(
+    ("body", "limits"),
+    [
+        ({"messages": [Q1, A1, Q1]}, {"messages": 2}),
+        ({"messages": [{"role": "user", "content": "x" * 51}]}, {"chars": 50}),
+        ({"messages": [Q1, A1]}, {}),
+        ({"messages": [Q1, Q1]}, {}),
+        ({"messages": []}, {}),
+        ({"messages": [{"role": "user", "content": "   "}]}, {}),
+    ],
+)
+def test_chat_history_rules_are_422(
+    client: TestClient, service: DocQAService, body: dict[str, object], limits: dict[str, int]
+) -> None:
+    _with_limits(service, **limits)
+    response = client.post("/chat", json=body)
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "chat_history_invalid"
+    assert response.json()["detail"]["message"]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {},
+        {"messages": [{"role": "system", "content": "hi"}]},
+        {"messages": [{"role": "user"}]},
+        {"messages": [{"role": "user", "content": "hi", "citations": []}]},
+        {"messages": [Q1], "extra": True},
+        {"messages": [Q1], "k": 0},
+    ],
+)
+def test_chat_shape_errors_are_422(client: TestClient, body: dict[str, object]) -> None:
+    assert client.post("/chat", json=body).status_code == 422
+
+
+@pytest.mark.parametrize(("error", "status"), [(LLMRateLimitError(), 429), (LLMAuthError(), 502)])
+def test_chat_llm_errors(
+    client: TestClient, service: DocQAService, error: AnswerError, status: int
+) -> None:
+    class Failing:
+        def answer(
+            self, question: str, chunks: list[Chunk], history: tuple[ChatTurn, ...] = ()
+        ) -> Answer:
+            raise error
+
+    service.model_factory = Failing
+    response = client.post("/chat", json={"messages": [Q1]})
+    assert response.status_code == status
+    assert response.json()["detail"]["code"] == error.code

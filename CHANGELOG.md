@@ -19,3 +19,4 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 - Stateless chat core: history validation, deterministic follow-up retrieval queries and `DocQAService.chat` (T16).
 - CLI commands `docqa ingest` and `docqa ask` (`--k`, `--db`, `--json`) with documented exit codes (T9).
 - HTTP API: `GET /health`, `POST /ingest` (restricted to `DOCQA_INGEST_ROOT`) and `POST /ask` with 429/502 error mapping (T10).
+- Stateless `POST /chat` endpoint with the same response schema as `/ask` and 422 `chat_history_invalid` for invalid histories (T17).
