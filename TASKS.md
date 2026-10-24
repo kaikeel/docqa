@@ -27,6 +27,7 @@ Thiết kế: `docs/SPEC.md` · ADR: `docs/adr/` · Mỗi task một nhánh `fea
 | T20 | Sửa vòng 1 (QA #3, #4 = SEC M2): đo đúng chuỗi gửi đi trong `/chat`, cắt câu trả lời cũ thay vì từ chối (widget cũng cắt), giới hạn body 256 KiB (413), trần schema 100 message / 32 000 ký tự; sửa ADR 0004 | T19 | eng-developer | 1h | done | 3ecebc6 (nhánh `fix/chat-limits`) |
 | T21 | Sửa vòng 1 (QA #5 = SEC M1, QA #6 = SEC L1, QA #9, QA #15): file symlink chỉ đọc nếu nằm trong root (CLI: thư mục ingest, API: `DOCQA_INGEST_ROOT`); path có NUL → 400 `invalid_path`; tài liệu khoá theo đường dẫn tuyệt đối (schema 3); `document_sha` giữ lock | T20 | eng-developer | 1h | done | 78d6f12 (nhánh `fix/ingest-paths`) |
 | T22 | Sửa vòng 1 (QA #2, #7, SEC L2, L4): API dựng service lúc khởi động (env sai / index không mở được → dừng với "DocQA cannot start: …"), `/health` 503 `index_unavailable` khi index không ghi được; `.env.example` bỏ `DOCQA_DB`/`DOCQA_INGEST_ROOT`; Dockerfile multi-stage không còn uv/cache; README `-p 127.0.0.1:8000:8000` + lối `--env-file` | T21 | eng-developer | 1h | done | 9f9ee24, 3954a64 (nhánh `fix/docker-startup`) |
+| T23 | Sửa vòng 1 (QA #6, #7, #8, #16): mọi lỗi API là JSON `{"detail": {"code", "message"}}` (422 pydantic → `invalid_request` không lặp input, 404/405, 500 `internal_error`); `GET /favicon.ico` 204; README bảng mã lỗi | T22 | eng-developer | 0.5h | done | 5f7a265 (nhánh `fix/api-errors`) |
 
 Tổng ước lượng Eng: 14.5h công AI (chưa gồm QA + Security gate). Chat + widget thêm 3.5h (T15–T18, T12 +0.5h),
 đã được chấp nhận ở Q2.

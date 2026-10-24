@@ -385,3 +385,61 @@ def test_body_under_the_limit_is_accepted(client: TestClient) -> None:
     response = client.post("/chat", json={"messages": [{"role": "user", "content": content}]})
     assert response.status_code == 422  # too long for DOCQA_CHAT_MAX_CHARS, but not 413
     assert response.json()["detail"]["code"] == "chat_history_invalid"
+
+
+# --- one error format everywhere (QA #6, #7, #8), favicon (QA #16) ----------------------
+
+
+def test_validation_errors_use_the_common_format(client: TestClient) -> None:
+    response = client.post("/ask", json={"question": "", "k": 0})
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "invalid_request"
+    assert "question" in detail["message"]
+    assert [e["loc"] for e in detail["errors"]] == [["body", "question"], ["body", "k"]]
+    assert all("input" not in e for e in detail["errors"])  # user input is not echoed
+
+
+def test_malformed_json_uses_the_common_format(client: TestClient) -> None:
+    response = client.post("/ask", content="{nope", headers={"Content-Type": "application/json"})
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "invalid_request"
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "status", "code"),
+    [("get", "/nope", 404, "not_found"), ("get", "/ask", 405, "method_not_allowed")],
+)
+def test_http_errors_use_the_common_format(
+    client: TestClient, method: str, path: str, status: int, code: str
+) -> None:
+    response = client.request(method.upper(), path)
+    assert response.status_code == status
+    assert response.json()["detail"]["code"] == code
+    assert response.json()["detail"]["message"]
+
+
+def test_unexpected_errors_are_json_without_internals(service: DocQAService) -> None:
+    class Broken:
+        def answer(
+            self, question: str, chunks: list[Chunk], history: tuple[ChatTurn, ...] = ()
+        ) -> Answer:
+            raise RuntimeError("/Users/secret/path sk-ant-api03-FAKE")
+
+    service.model_factory = Broken
+    api.app.dependency_overrides[api.get_service] = lambda: service
+    try:
+        with TestClient(api.app, raise_server_exceptions=False) as client:
+            response = client.post("/ask", json={"question": WARRANTY_Q})
+    finally:
+        api.app.dependency_overrides.clear()
+    assert response.status_code == 500
+    assert response.json() == {
+        "detail": {"code": "internal_error", "message": "Internal server error."}
+    }
+    assert "secret" not in response.text
+
+
+def test_favicon_is_empty_not_404(client: TestClient) -> None:
+    assert client.get("/favicon.ico").status_code == 204
+    assert client.head("/favicon.ico").status_code == 204

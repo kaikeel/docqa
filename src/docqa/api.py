@@ -13,10 +13,12 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Annotated, Literal
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.datastructures import Headers
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from docqa import __version__
@@ -91,6 +93,38 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.add_middleware(BodySizeLimitMiddleware, max_bytes=MAX_BODY_BYTES)
+
+# Every error response has the shape {"detail": {"code", "message"}} (QA #8).
+_HTTP_CODES = {404: "not_found", 405: "method_not_allowed"}
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    detail: object = exc.detail
+    if not isinstance(detail, dict):  # Starlette's own errors carry a plain string
+        detail = {"code": _HTTP_CODES.get(exc.status_code, "http_error"), "message": str(detail)}
+    return JSONResponse({"detail": detail}, status_code=exc.status_code, headers=exc.headers)
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    # Location, message and type only: the user's input is not echoed back.
+    errors = [
+        {"loc": list(e.get("loc", ())), "msg": str(e.get("msg", "")), "type": e.get("type", "")}
+        for e in exc.errors()
+    ]
+    message = "; ".join(
+        f"{'.'.join(str(part) for part in e['loc'][1:]) or 'body'}: {e['msg']}" for e in errors
+    )
+    detail = {"code": "invalid_request", "message": message, "errors": errors}
+    return JSONResponse({"detail": detail}, status_code=422)
+
+
+@app.exception_handler(Exception)
+async def _unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+    # Logged with its traceback by the server; the client gets no internals.
+    detail = {"code": "internal_error", "message": "Internal server error."}
+    return JSONResponse({"detail": detail}, status_code=500)
 
 
 def _inline_hash(html: str, tag: str) -> str:
@@ -189,6 +223,12 @@ def _llm_error(exc: AnswerError) -> HTTPException:
 def widget() -> HTMLResponse:
     """Sample chat widget (ADR 0006): same origin as the API, data rendered via textContent."""
     return HTMLResponse(WIDGET_HTML, headers=WIDGET_HEADERS)
+
+
+@app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
+def favicon() -> Response:
+    """No icon: 204 keeps the browser console free of 404 noise (QA #16)."""
+    return Response(status_code=204)
 
 
 @app.get("/health")
