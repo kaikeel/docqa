@@ -225,3 +225,76 @@ def test_chat_llm_errors(
     response = client.post("/chat", json={"messages": [Q1]})
     assert response.status_code == status
     assert response.json()["detail"]["code"] == error.code
+
+
+# --- request limits (QA #3, #4 / SEC M2) ------------------------------------------
+
+
+def test_widget_flow_survives_an_answer_longer_than_the_chat_limit(
+    client: TestClient, service: DocQAService
+) -> None:
+    """The widget sends the server's own answer back; a long one must not block the chat."""
+
+    class Verbose:
+        def answer(
+            self, question: str, chunks: list[Chunk], history: tuple[ChatTurn, ...] = ()
+        ) -> Answer:
+            return Answer(text="L" * 2500, citations=[], found=False)
+
+    service.model_factory = Verbose
+    messages: list[dict[str, str]] = [{"role": "user", "content": WARRANTY_Q}]
+    first = client.post("/chat", json={"messages": messages})
+    assert first.status_code == 200
+    messages += [
+        {"role": "assistant", "content": first.json()["answer"]},
+        {"role": "user", "content": "And how quickly are critical defects fixed?"},
+    ]
+    second = client.post("/chat", json={"messages": messages})
+    assert second.status_code == 200, second.text
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"messages": [{"role": "user", "content": "x" * 32_001}]},
+        {
+            "messages": [{"role": "user", "content": "q"}, {"role": "assistant", "content": "a"}]
+            * 50
+            + [{"role": "user", "content": "q"}]
+        },
+    ],
+    ids=["content-over-hard-cap", "over-100-messages"],
+)
+def test_chat_schema_hard_caps_are_422(
+    client: TestClient, service: DocQAService, body: dict[str, object]
+) -> None:
+    _with_limits(service, messages=1000, chars=100_000)  # only the schema caps apply
+    response = client.post("/chat", json=body)
+    assert response.status_code == 422
+    assert "chat_history_invalid" not in response.text  # rejected by the schema itself
+
+
+def test_whitespace_padding_is_rejected_before_parsing(client: TestClient) -> None:
+    content = WARRANTY_Q + " " * 1_000_000
+    response = client.post("/chat", json={"messages": [{"role": "user", "content": content}]})
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "request_too_large"
+
+
+def test_body_limit_applies_without_content_length(client: TestClient) -> None:
+    def chunks() -> Iterator[bytes]:
+        yield b'{"question": "'
+        for _ in range(300):
+            yield b"a" * 1024
+        yield b'"}'
+
+    response = client.post("/ask", content=chunks(), headers={"Content-Type": "application/json"})
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "request_too_large"
+
+
+def test_body_under_the_limit_is_accepted(client: TestClient) -> None:
+    content = "x" * 30_000
+    response = client.post("/chat", json={"messages": [{"role": "user", "content": content}]})
+    assert response.status_code == 422  # too long for DOCQA_CHAT_MAX_CHARS, but not 413
+    assert response.json()["detail"]["code"] == "chat_history_invalid"

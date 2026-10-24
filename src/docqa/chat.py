@@ -20,6 +20,23 @@ REFERENCE_WORDS = frozenset(
 _WORD_RE = re.compile(r"\w+", re.UNICODE)
 
 
+def prepare_history(messages: Sequence[ChatTurn], max_chars: int) -> list[ChatTurn]:
+    """Normalise a history into exactly what will be validated and sent to the model.
+
+    Every message is stripped, so length checks measure the text that is actually sent
+    (whitespace padding cannot slip past the limit). Earlier assistant answers are cut to
+    ``max_chars``: they were produced by the server (up to the model's max_tokens), and they
+    are context only (ADR 0004), so a long answer must never make the next request invalid.
+    """
+    prepared: list[ChatTurn] = []
+    for turn in messages:
+        content = turn.content.strip()
+        if turn.role == "assistant":
+            content = content[:max_chars].rstrip()
+        prepared.append(ChatTurn(role=turn.role, content=content))
+    return prepared
+
+
 def validate_history(messages: Sequence[ChatTurn], max_messages: int, max_chars: int) -> None:
     """Raise ChatHistoryError naming the first rule the history breaks."""
     if len(messages) < 1:
@@ -27,10 +44,11 @@ def validate_history(messages: Sequence[ChatTurn], max_messages: int, max_chars:
     if len(messages) > max_messages:
         raise ChatHistoryError(f"messages must contain at most {max_messages} messages")
     for number, turn in enumerate(messages, start=1):
-        length = len(turn.content.strip())
-        if length == 0:
+        # Length is measured on the content as given (prepare_history has already stripped
+        # it), i.e. on exactly what is sent to the model.
+        if not turn.content.strip():
             raise ChatHistoryError(f"message {number} is empty")
-        if length > max_chars:
+        if len(turn.content) > max_chars:
             raise ChatHistoryError(f"message {number} is longer than {max_chars} characters")
     if messages[0].role != "user":
         raise ChatHistoryError("messages must start with a user message")

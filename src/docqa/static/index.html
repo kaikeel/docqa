@@ -41,6 +41,7 @@
 (function () {
   "use strict";
   var MAX_MESSAGES = 20; // same as the server default (DOCQA_CHAT_MAX_MESSAGES)
+  var MAX_CHARS = 2000; // same as the server default (DOCQA_CHAT_MAX_CHARS)
   var messages = [];
   var log = document.getElementById("log");
   var form = document.getElementById("ask-form");
@@ -98,7 +99,8 @@
       var answer = String(data.answer);
       var div = bubble("assistant", answer, data.found ? "" : "not-found");
       showCitations(div, data.citations);
-      messages.push({ role: "assistant", content: answer });
+      // Answers are context only; the server would shorten a long one the same way.
+      messages.push({ role: "assistant", content: answer.slice(0, MAX_CHARS) });
     } catch (err) {
       messages.pop();
       bubble("assistant", "The server could not be reached. Please try again.", "error");
