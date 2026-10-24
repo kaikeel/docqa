@@ -339,3 +339,19 @@ def test_fake_model_records_history() -> None:
     fake = FakeAnswerModel()
     fake.answer("q", CHUNKS, history=list(HISTORY))
     assert fake.calls == [("q", CHUNKS, HISTORY)]
+
+
+def test_missing_api_key_becomes_auth_error_without_network() -> None:
+    from anthropic._client import Anthropic as RealAnthropic  # conftest patches the public name
+
+    model = ClaudeAnswerModel(
+        client_factory=lambda: RealAnthropic(max_retries=0), model="claude-opus-5-5", effort="low"
+    )
+    with pytest.raises(LLMAuthError, match="ANTHROPIC_API_KEY"):
+        model.answer("q", CHUNKS)
+
+
+def test_unrelated_type_errors_are_not_hidden() -> None:
+    model, _ = model_with(TypeError("something else"))
+    with pytest.raises(TypeError, match="something else"):
+        model.answer("q", CHUNKS)
