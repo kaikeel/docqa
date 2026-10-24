@@ -39,7 +39,7 @@ class DocQAService:
         cls, settings: Settings, model_factory: ModelFactory | None = None
     ) -> DocQAService:
         store = Store(settings.db_path)
-        retriever = FTS5Retriever(store, min_score=settings.min_score)
+        retriever = FTS5Retriever(store, min_coverage=settings.min_coverage)
 
         def claude() -> AnswerModel:
             return ClaudeAnswerModel(model=settings.model, effort=settings.effort)

@@ -55,6 +55,7 @@ jobs:
           export DOCQA_DB="$RUNNER_TEMP/docqa.db"
           uv run docqa ingest examples/docs
           uv run docqa eval examples/eval.jsonl --retrieval-only --k 3
+          uv run docqa eval examples/eval_holdout.jsonl --retrieval-only --k 3
 
   docker:
     runs-on: ubuntu-latest

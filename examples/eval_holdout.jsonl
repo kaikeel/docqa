@@ -1,0 +1,35 @@
+{"question": "How do I report a bug?", "expected_sources": ["warranty-policy.md"], "answerable": true}
+{"question": "Is the warranty free?", "expected_sources": ["warranty-policy.md"], "answerable": true}
+{"question": "What does the Pro plan cost?", "expected_sources": ["support-plan-pro.txt"], "answerable": true}
+{"question": "How much is the Starter plan?", "expected_sources": ["support-plan-starter.md"], "answerable": true}
+{"question": "Do unused hours roll over?", "expected_sources": ["support-plan-starter.md", "support-plan-pro.txt"], "answerable": true}
+{"question": "Can I cancel the Starter plan?", "expected_sources": ["support-plan-starter.md"], "answerable": true}
+{"question": "What is SEV2?", "expected_sources": ["incident-response.md"], "answerable": true}
+{"question": "Who is the incident commander?", "expected_sources": ["incident-response.md"], "answerable": true}
+{"question": "What is a postmortem?", "expected_sources": ["incident-response.md"], "answerable": true}
+{"question": "How do you do versioning?", "expected_sources": ["release-checklist.pdf"], "answerable": true}
+{"question": "How do I roll back a release?", "expected_sources": ["release-checklist.pdf", "incident-response.md"], "answerable": true}
+{"question": "What goes in the changelog?", "expected_sources": ["release-checklist.pdf"], "answerable": true}
+{"question": "Do you use mypy?", "expected_sources": ["coding-standards.md"], "answerable": true}
+{"question": "What linter do you use?", "expected_sources": ["coding-standards.md"], "answerable": true}
+{"question": "Where do secrets go?", "expected_sources": ["security-checklist.txt", "coding-standards.md"], "answerable": true}
+{"question": "Do containers run as root?", "expected_sources": ["security-checklist.txt"], "answerable": true}
+{"question": "What are your business hours?", "expected_sources": ["communication-guidelines.txt"], "answerable": true}
+{"question": "Do you have meetings?", "expected_sources": ["communication-guidelines.txt"], "answerable": true}
+{"question": "What language do you write in?", "expected_sources": ["communication-guidelines.txt"], "answerable": true}
+{"question": "What do I get at handover?", "expected_sources": ["delivery-process.md"], "answerable": true}
+{"question": "Is the handover meeting recorded?", "expected_sources": ["delivery-process.md"], "answerable": true}
+{"question": "How are milestones invoiced?", "expected_sources": ["estimates-and-change-requests.md"], "answerable": true}
+{"question": "Is maintenance billed hourly?", "expected_sources": ["estimates-and-change-requests.md"], "answerable": true}
+{"question": "pricing", "expected_sources": ["support-plan-starter.md", "support-plan-pro.txt"], "answerable": true}
+{"question": "What is the price of the Enterprise plan?", "expected_sources": [], "answerable": false}
+{"question": "Do you offer refunds?", "expected_sources": [], "answerable": false}
+{"question": "Where is your office located?", "expected_sources": [], "answerable": false}
+{"question": "Who founded Kaikeel?", "expected_sources": [], "answerable": false}
+{"question": "How many employees work at the studio?", "expected_sources": [], "answerable": false}
+{"question": "Do you support Kubernetes deployments?", "expected_sources": [], "answerable": false}
+{"question": "What is the warranty on hardware?", "expected_sources": [], "answerable": false}
+{"question": "Is there a mobile app?", "expected_sources": [], "answerable": false}
+{"question": "What payment methods do you accept?", "expected_sources": [], "answerable": false}
+{"question": "How do I reset my password?", "expected_sources": [], "answerable": false}
+{"question": "What is the weather today?", "expected_sources": [], "answerable": false}
