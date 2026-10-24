@@ -23,3 +23,4 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 - Sample chat widget at `GET /` (single HTML file, `textContent` only) served with a hash-based Content-Security-Policy (T18).
 - `docqa eval` with retrieval-only hit@k and full-mode citation rate; `DOCQA_MIN_SCORE` calibrated to 3.0 on the sample set and applied as an evidence gate on the best match (T11).
 - Dockerfile (non-root, uv-locked), `.env.example` and README with uv and Docker quick starts, API/chat/widget usage, evaluation and known limitations (T12).
+- Verified the README on a clean clone without an API key: uv path, retrieval eval, tests and Docker image (T13).
