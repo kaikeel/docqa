@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from docqa import __version__
 from docqa.config import Settings
-from docqa.errors import AnswerError, IngestError, LLMRateLimitError
-from docqa.models import Answer
+from docqa.errors import AnswerError, ChatHistoryError, IngestError, LLMRateLimitError
+from docqa.models import Answer, ChatTurn
 from docqa.service import DocQAService
 
 app = FastAPI(
@@ -37,6 +37,20 @@ class IngestResponse(BaseModel):
 class AskRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     question: str = Field(min_length=1, max_length=2000)
+    k: int | None = Field(default=None, ge=1, le=20)
+
+
+class ChatMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatRequest(BaseModel):
+    """Shape only; limits (DOCQA_CHAT_*) and role order are checked by chat.validate_history."""
+
+    model_config = ConfigDict(extra="forbid")
+    messages: list[ChatMessage]
     k: int | None = Field(default=None, ge=1, le=20)
 
 
@@ -104,6 +118,18 @@ def ingest(body: IngestRequest, service: ServiceDep) -> IngestResponse:
 def ask(body: AskRequest, service: ServiceDep) -> AnswerResponse:
     try:
         answer = service.ask(body.question, body.k)
+    except AnswerError as exc:
+        raise _llm_error(exc) from None
+    return AnswerResponse.from_answer(answer)
+
+
+@app.post("/chat")
+def chat(body: ChatRequest, service: ServiceDep) -> AnswerResponse:
+    messages = [ChatTurn(role=m.role, content=m.content) for m in body.messages]
+    try:
+        answer = service.chat(messages, body.k)
+    except ChatHistoryError as exc:
+        raise _error(422, exc.code, str(exc)) from None
     except AnswerError as exc:
         raise _llm_error(exc) from None
     return AnswerResponse.from_answer(answer)
