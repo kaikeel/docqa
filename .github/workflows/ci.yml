@@ -1,15 +1,65 @@
-# CI mẫu — sol-architect chỉnh theo stack của dự án
+# CI for Kaikeel DocQA (Python 3.12 + uv).
+# Never calls the real Anthropic API: no secrets are configured and ANTHROPIC_API_KEY is forced empty.
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ANTHROPIC_API_KEY: ""
+  UV_PYTHON: "3.12"
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.12"
-      - run: pip install ruff pytest
-      - run: ruff check .
-      - run: if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - run: pytest -q
+          enable-cache: true
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies (locked)
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Type check
+        run: uv run mypy src
+
+      - name: Tests with coverage (>= 80%)
+        run: uv run pytest --cov=docqa --cov-report=term-missing --cov-fail-under=80
+
+      - name: Retrieval eval smoke (no API key)
+        if: hashFiles('examples/eval.jsonl') != ''
+        run: |
+          export DOCQA_DB="$RUNNER_TEMP/docqa.db"
+          uv run docqa ingest examples/docs
+          uv run docqa eval examples/eval.jsonl --retrieval-only --k 3
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      # hashFiles() is only available at step level; skip until T12 adds the Dockerfile.
+      - name: Build image (no push)
+        if: hashFiles('Dockerfile') != ''
+        run: docker build -t docqa:ci .
