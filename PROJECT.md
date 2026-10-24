@@ -4,7 +4,7 @@
 - Khách hàng: Kaikeel (nội bộ) · Người xem: khách tiềm năng trên Freelancer, khách SG/CN
 - Giá trị: $0 · Loại: portfolio
 - Appetite: tối đa 1 ngày công AI, ≤ 1 giờ CEO (chỉ xem demo, duyệt public)
-- Trạng thái: SHAPE
+- Trạng thái: VERIFY (BUILD T1–T13, T15–T18 xong 2026-10-25; chờ QA + Security gate — T14)
 
 ## Vấn đề (người xem portfolio muốn thấy gì)
 Khách thuê "RAG chatbot" thường nhận về bản demo chạy được một lần, trả lời bịa, không có test, không ai
