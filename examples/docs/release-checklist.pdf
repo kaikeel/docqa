@@ -1,0 +1,78 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 778 >>
+stream
+BT
+/F1 11 Tf
+14 TL
+72 740 Td
+(Kaikeel Handbook Lite: Release Checklist) Tj T*
+(\(Fictional sample document for the DocQA demo.\)) Tj T*
+() Tj T*
+(VERSIONING) Tj T*
+(Every release gets a semantic version number: MAJOR.MINOR.PATCH.) Tj T*
+(Increase PATCH for bug fixes, MINOR for backwards-compatible features,) Tj T*
+(and MAJOR for breaking changes. The first client release is 0.1.0.) Tj T*
+() Tj T*
+(CHANGELOG) Tj T*
+(Move the entries under Unreleased into a new section named after the version,) Tj T*
+(with the release date. Group entries as Added, Changed, Fixed and Removed.) Tj T*
+() Tj T*
+(TAGGING) Tj T*
+(Create an annotated git tag such as v0.1.0 on the merge commit in main.) Tj T*
+(The handover zip archive is always built from the tag, never from a branch.) Tj T*
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 7 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 652 >>
+stream
+BT
+/F1 11 Tf
+14 TL
+72 740 Td
+(GATES BEFORE TAGGING) Tj T*
+(The quality report and the security report must both say PASS.) Tj T*
+(CI must be green on the exact commit that will be tagged.) Tj T*
+() Tj T*
+(ROLLBACK PLAN) Tj T*
+(Every release note states how to roll back: which previous tag to redeploy) Tj T*
+(and whether any database migration must be reverted first.) Tj T*
+(A rollback drill is rehearsed once per quarter on a staging copy.) Tj T*
+() Tj T*
+(ANNOUNCEMENT) Tj T*
+(After tagging, the delivery lead posts a short release note to the client) Tj T*
+(thread listing the version, the highlights and any action the client must take.) Tj T*
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000247 00000 n 
+0000001076 00000 n 
+0000001202 00000 n 
+0000001905 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+1975
+%%EOF

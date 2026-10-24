@@ -1,0 +1,31 @@
+Kaikeel Handbook Lite: Security Checklist
+(Fictional sample document for the DocQA demo.)
+
+Run this checklist before every release. The release is blocked until every item is ticked.
+
+SECRETS
+- Run gitleaks over the entire git history, not only the latest commit.
+- The repository contains a .env.example file with placeholder values only.
+- Real .env files are listed in .gitignore.
+- API keys are read from environment variables at runtime and never written to logs.
+- If a key was ever committed, rotate it immediately; deleting the commit is not enough.
+
+DEPENDENCIES
+- Run a vulnerability audit of the locked dependencies (for example pip-audit or npm audit).
+- High or critical findings must be fixed or explicitly accepted with a written reason.
+
+INPUT HANDLING
+- Validate every external input: request bodies, file uploads, query parameters.
+- File paths supplied by users must be resolved and checked against an allowed root
+  directory to prevent path traversal.
+- Never build SQL by string concatenation; use parameterised queries.
+
+CONTAINERS
+- Images run as a non-root user.
+- Secrets are passed at runtime with environment variables or an env file, never baked
+  into the image.
+- A .dockerignore file excludes .env, local databases and the .git directory.
+
+REPORT
+- The reviewer writes SECURITY_REPORT.md with the result PASS or FAIL and the list of
+  findings. A FAIL report goes back to engineering with the findings attached.

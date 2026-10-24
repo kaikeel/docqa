@@ -1,0 +1,26 @@
+Kaikeel Handbook Lite: Client Communication Guidelines
+(Fictional sample document for the DocQA demo.)
+
+RESPONSE TIMES
+- Client messages are answered within one business day, even if the answer is only
+  "received, we will reply with details by Thursday".
+- Business days are Monday to Friday, 09:00 to 18:00 in the client's time zone agreed at
+  kickoff.
+
+LANGUAGE AND TONE
+- Write to clients in English unless the client writes in another language first.
+- Be calm and precise. State facts, dates and next steps. Avoid hype words and emoji.
+- Never promise a number that has not been measured, such as a speed-up or an accuracy
+  figure.
+
+STATUS UPDATES
+- Active projects receive a short written status update every Tuesday and Friday:
+  what was done, what is next, and any blockers or decisions needed from the client.
+
+MEETINGS
+- Meetings are optional; written updates are the default. When a call is useful, it has an
+  agenda sent in advance and a written summary sent within 24 hours afterwards.
+
+APPROVALS
+- Anything that commits the company, such as a quote, a scope change or a delivery, is
+  reviewed and sent by the founder personally.
