@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,6 +11,8 @@ from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
 from docqa.errors import IngestError
+from docqa.models import IngestReport
+from docqa.store import NewChunk, Store
 
 CHUNK_SIZE = 800
 CHUNK_OVERLAP = 150
@@ -102,3 +106,63 @@ def _load_pdf(path: Path) -> list[Page]:
     if not pages:
         raise IngestError("no extractable text — OCR not supported")
     return pages
+
+
+def ingest_dir(store: Store, root: Path) -> IngestReport:
+    """Index every supported file under ``root`` (recursively, in sorted order).
+
+    Hidden files and directories are skipped. A file whose SHA-256 is unchanged is left as is;
+    a changed file has all its chunks replaced in one transaction. Files that disappeared from
+    ``root`` are not removed from the index (v0.1).
+    """
+    if not root.is_dir():
+        raise IngestError(f"{root} is not a directory")
+    documents = chunks = unchanged = 0
+    skipped: list[str] = []
+    for path, rel in _walk(root, skipped):
+        try:
+            data = path.read_bytes()
+            sha = hashlib.sha256(data).hexdigest()
+            if store.document_sha(rel) == sha:
+                unchanged += 1
+                continue
+            new_chunks = _chunks_for(load_file(path))
+        except IngestError as exc:
+            skipped.append(f"{rel}: {exc}")
+            continue
+        except OSError as exc:
+            skipped.append(f"{rel}: unreadable ({type(exc).__name__})")
+            continue
+        store.replace_document(rel, sha, new_chunks)
+        documents += 1
+        chunks += len(new_chunks)
+    return IngestReport(
+        documents=documents, chunks=chunks, skipped=sorted(skipped), unchanged=unchanged
+    )
+
+
+def _walk(root: Path, skipped: list[str]) -> list[tuple[Path, str]]:
+    found: list[tuple[Path, str]] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        base = Path(dirpath)
+        for name in sorted(dirnames):
+            if name.startswith("."):
+                skipped.append(f"{(base / name).relative_to(root).as_posix()}: hidden")
+        dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+        for name in sorted(filenames):
+            rel = (base / name).relative_to(root).as_posix()
+            if name.startswith("."):
+                skipped.append(f"{rel}: hidden")
+            elif Path(name).suffix.lower() not in SUPPORTED_SUFFIXES:
+                skipped.append(f"{rel}: unsupported file type")
+            else:
+                found.append((base / name, rel))
+    return sorted(found, key=lambda item: item[1])
+
+
+def _chunks_for(pages: list[Page]) -> list[NewChunk]:
+    result: list[NewChunk] = []
+    for page in pages:
+        for span in chunk_text(page.text):
+            result.append(NewChunk(len(result), span.start, span.end, page.number, span.text))
+    return result

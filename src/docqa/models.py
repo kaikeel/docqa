@@ -39,8 +39,13 @@ class Answer:
 
 @dataclass(frozen=True)
 class IngestReport:
-    """Summary of an ingest run."""
+    """Summary of an ingest run.
+
+    ``documents``/``chunks`` count what was (re)indexed in this run; files whose content hash
+    did not change are counted in ``unchanged`` and left untouched.
+    """
 
     documents: int
     chunks: int
-    skipped: list[str]  # "path: reason" for unsupported, empty or unreadable files
+    skipped: list[str]  # "path: reason" for hidden, unsupported, empty or unreadable files
+    unchanged: int = 0
