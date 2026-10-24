@@ -20,6 +20,8 @@ DEFAULT_MODEL = "claude-opus-5-5"
 DEFAULT_EFFORT: Effort = "low"
 DEFAULT_DB = "./docqa.db"
 DEFAULT_TOP_K = 5
+DEFAULT_CHAT_MAX_MESSAGES = 20
+DEFAULT_CHAT_MAX_CHARS = 2000
 # Provisional; calibrated on examples/ in T11 (see README and docs/adr/0002).
 DEFAULT_MIN_SCORE = 0.0
 
@@ -32,6 +34,8 @@ class Settings:
     top_k: int
     min_score: float
     ingest_root: Path
+    chat_max_messages: int = DEFAULT_CHAT_MAX_MESSAGES
+    chat_max_chars: int = DEFAULT_CHAT_MAX_CHARS
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -42,6 +46,8 @@ class Settings:
             top_k=_positive_int("DOCQA_TOP_K", DEFAULT_TOP_K),
             min_score=_float("DOCQA_MIN_SCORE", DEFAULT_MIN_SCORE),
             ingest_root=Path(os.environ.get("DOCQA_INGEST_ROOT") or os.getcwd()).resolve(),
+            chat_max_messages=_positive_int("DOCQA_CHAT_MAX_MESSAGES", DEFAULT_CHAT_MAX_MESSAGES),
+            chat_max_chars=_positive_int("DOCQA_CHAT_MAX_CHARS", DEFAULT_CHAT_MAX_CHARS),
         )
 
 

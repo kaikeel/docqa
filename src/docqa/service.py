@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from docqa.chat import retrieval_queries, validate_history
 from docqa.config import Settings
 from docqa.ingest import ingest_dir
 from docqa.llm import AnswerModel, ClaudeAnswerModel
@@ -53,6 +54,19 @@ class DocQAService:
         if not chunks:
             return Answer(text=NOT_FOUND_TEXT, citations=[], found=False)
         return self._answer(question, chunks, ())
+
+    def chat(self, messages: Sequence[ChatTurn], k: int | None = None) -> Answer:
+        """Answer the last user message of a client-held history (ADR 0004, 0005)."""
+        validate_history(messages, self.settings.chat_max_messages, self.settings.chat_max_chars)
+        limit = k or self.settings.top_k
+        chunks: list[Chunk] = []
+        for query in retrieval_queries(messages):
+            chunks = self.retriever.search(query, limit)
+            if chunks:
+                break
+        if not chunks:
+            return Answer(text=NOT_FOUND_TEXT, citations=[], found=False)
+        return self._answer(messages[-1].content, chunks, tuple(messages[:-1]))
 
     def _answer(self, question: str, chunks: list[Chunk], history: tuple[ChatTurn, ...]) -> Answer:
         if self._model is None:

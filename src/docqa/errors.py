@@ -15,6 +15,12 @@ class IngestError(DocQAError):
     code = "ingest_error"
 
 
+class ChatHistoryError(DocQAError):
+    """A /chat history breaks one of the validation rules (message says which)."""
+
+    code = "chat_history_invalid"
+
+
 class AnswerError(DocQAError):
     """The answer model failed."""
 
