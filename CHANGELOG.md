@@ -5,6 +5,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+### Added
+- README sections near the top: a screenshot of the sample widget, "See it without an API key", "Measured
+  results", "Why DocQA" and "Adapt it to your documents".
+- `examples/recorded/`: three recorded `/ask` and `/chat` exchanges on the sample documents, each labelled as
+  recorded through the Claude Code CLI with a local-only backend, not through DocQA's Anthropic API path.
+  A test checks their request and response shapes, the retrieval they list and that every quote appears in the
+  cited passage.
+- `docs/QUALITY.md`: how v0.1.0 was checked (QA and security rounds, fixes, tools, accepted risks).
+
 ## [0.1.0] - 2026-10-25
 
 ### Added
