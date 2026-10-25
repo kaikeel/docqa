@@ -1,0 +1,117 @@
+{
+  "provenance": "Recorded on 2026-10-26. NOT output of DocQA's Anthropic API path. The answer text and quotes were produced by Claude Opus through the Claude Code CLI (`claude -p`), using a local-only experimental answer backend that is not part of this repository. On that backend the model is asked to return its quotes as JSON, and a quote is kept only if it appears verbatim (ignoring whitespace differences) in the passage it names. The shipped path, docqa.llm.ClaudeAnswerModel, uses the Anthropic API's native citations instead, so wording and citation choice can differ. Everything else is DocQA's own code: ingest, BM25 retrieval, the evidence gate, chat follow-up handling, request validation and the response shape (requests were sent in-process to the FastAPI app). The CLI's `opus` alias resolved to claude-opus-4-8; DocQA's default model is claude-opus-5-5. The retrieval field was recomputed afterwards from the same index (retrieval is deterministic and needs no key).",
+  "note": "Two turns of the stateless /chat endpoint, as sent by the sample widget: the client sends the whole history each time. The follow-up 'And what about the other one?' matches nothing on its own, so it is searched together with the previous user question and both plan files reach the model.",
+  "model_calls": 2,
+  "models_reported_by_cli": [
+    "claude-haiku-4-5-20251001",
+    "claude-opus-4-8"
+  ],
+  "exchanges": [
+    {
+      "endpoint": "POST /chat",
+      "status": 200,
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "What support plans do you have?"
+          }
+        ]
+      },
+      "retrieval": {
+        "query": "What support plans do you have?",
+        "best_passage_coverage": 1.0,
+        "passages_sent_to_model": [
+          "support-plan-starter.md",
+          "support-plan-pro.txt",
+          "support-plan-pro.txt",
+          "delivery-process.md",
+          "release-checklist.pdf"
+        ]
+      },
+      "response": {
+        "answer": "There are two support plans: the Starter plan (USD 190/month, up to 4 hours of maintenance, email support within two business days) and the Pro plan (USD 690/month, up to 12 hours, priority email/chat support, uptime monitoring, and a monthly review call).",
+        "citations": [
+          {
+            "source": "support-plan-starter.md",
+            "quote": "The Starter plan is a monthly support plan for small projects after the warranty period ends."
+          },
+          {
+            "source": "support-plan-pro.txt",
+            "quote": "The Pro plan is a monthly support plan for business-critical projects after the warranty\nperiod ends."
+          }
+        ],
+        "found": true
+      }
+    },
+    {
+      "endpoint": "POST /chat",
+      "status": 200,
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "What support plans do you have?"
+          },
+          {
+            "role": "assistant",
+            "content": "There are two support plans: the Starter plan (USD 190/month, up to 4 hours of maintenance, email support within two business days) and the Pro plan (USD 690/month, up to 12 hours, priority email/chat support, uptime monitoring, and a monthly review call)."
+          },
+          {
+            "role": "user",
+            "content": "And what about the other one?"
+          }
+        ]
+      },
+      "retrieval": {
+        "query": "And what about the other one?\nWhat support plans do you have?",
+        "best_passage_coverage": 1.0,
+        "passages_sent_to_model": [
+          "support-plan-starter.md",
+          "support-plan-pro.txt",
+          "support-plan-pro.txt",
+          "delivery-process.md",
+          "release-checklist.pdf"
+        ]
+      },
+      "response": {
+        "answer": "The Pro plan (USD 690/month, minimum three-month term) includes up to 12 hours of maintenance and small feature work per month, weekly dependency/security updates for up to three repositories, priority email and chat support with a response within four business hours, uptime monitoring with alerts (SEV1 first response within 30 minutes), and a monthly 30-minute review call with written report. Unused hours roll over for one month, up to a maximum of 6 hours. It's aimed at online shops, customer-facing APIs and AI assistants where downtime costs money.",
+        "citations": [
+          {
+            "source": "support-plan-pro.txt",
+            "quote": "Up to 12 hours of maintenance and small feature work per month."
+          },
+          {
+            "source": "support-plan-pro.txt",
+            "quote": "Weekly dependency and security updates for up to three repositories."
+          },
+          {
+            "source": "support-plan-pro.txt",
+            "quote": "Priority support by email and chat with a response within four business hours."
+          },
+          {
+            "source": "support-plan-pro.txt",
+            "quote": "Uptime monitoring with alerts, and a SEV1 first response within 30 minutes."
+          },
+          {
+            "source": "support-plan-pro.txt",
+            "quote": "A monthly 30-minute review call and written report."
+          },
+          {
+            "source": "support-plan-pro.txt",
+            "quote": "Unused hours roll over for one month, up to a maximum of 6 hours."
+          },
+          {
+            "source": "support-plan-pro.txt",
+            "quote": "The Pro plan costs USD 690 per month, billed monthly in advance, with a minimum term of\nthree months."
+          },
+          {
+            "source": "support-plan-pro.txt",
+            "quote": "Online shops, customer-facing APIs and AI assistants where downtime directly costs money."
+          }
+        ],
+        "found": true
+      }
+    }
+  ]
+}

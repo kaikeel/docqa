@@ -7,6 +7,124 @@ DocQA indexes `.md`, `.txt` and `.pdf` files into a single SQLite file, finds re
 (SQLite FTS5), and asks Claude to answer from those passages using the API's native citations. It ships as a
 CLI, a small HTTP API with stateless multi-turn chat, and a sample chat widget.
 
+![The DocQA sample widget in Chrome. The user asks "What support plans do you have?" and gets a short answer
+describing the Starter and Pro plans, followed by two numbered citations from support-plan-starter.md and
+support-plan-pro.txt. The user then asks "And what about the other one?" and gets a longer answer about the Pro
+plan, followed by citations that quote individual lines of support-plan-pro.txt.](docs/images/widget-chat.jpg)
+
+*The sample widget on the sample documents. The answers in this screenshot were produced by the local-only
+Claude Code backend described in [See it without an API key](#see-it-without-an-api-key), not by the Anthropic
+API path that DocQA ships; retrieval, the follow-up handling and the widget are DocQA's own.*
+
+[See it without an API key](#see-it-without-an-api-key) ·
+[Measured results](#measured-results) ·
+[Why DocQA](#why-docqa) ·
+[Adapt it to your documents](#adapt-it-to-your-documents) ·
+[Quick start](#quick-start-uv) ·
+[Quality process](docs/QUALITY.md)
+
+## See it without an API key
+
+**Recorded answers.** `examples/recorded/` holds three request/response pairs in the exact JSON shape of
+`POST /ask` and `POST /chat`, plus the passages that retrieval sent to the model:
+
+| File | What it shows |
+|---|---|
+| [`ask-warranty.json`](examples/recorded/ask-warranty.json) | "What is the warranty?" is answered from `warranty-policy.md` with two verbatim quotes (7-day warranty, what it covers). |
+| [`ask-gold-plan-not-found.json`](examples/recorded/ask-gold-plan-not-found.json) | "What does the Gold support plan cost?" There is no Gold plan. This question passes the evidence gate (coverage 0.55, threshold 0.5), so the model is called; it answers "Not found in the provided documents." with no citations and `found: false`. |
+| [`chat-support-plans.json`](examples/recorded/chat-support-plans.json) | Two `/chat` turns, as in the screenshot: "What support plans do you have?" (Starter and Pro, one quote each), then "And what about the other one?" (the Pro plan, eight quotes from `support-plan-pro.txt`). |
+
+Where these come from, stated plainly: they were recorded with **Claude Opus through the Claude Code CLI**
+(`claude -p`), using a **local-only experimental backend that is not part of this repository**. They are not
+output of DocQA's Anthropic API path. On that backend the model is asked to return its quotes as JSON, and a
+quote is kept only if it appears verbatim in the passage it names. DocQA itself (`docqa.llm.ClaudeAnswerModel`)
+uses the Anthropic API's native citations instead, so wording and citation choice can differ. Ingest,
+retrieval, the evidence gate, the follow-up handling, request validation and the response shape are DocQA's
+own code. Each file repeats this note and lists the model IDs the CLI reported.
+
+**Reproduce the retrieval part yourself** (no key, no network after `uv sync`):
+
+```bash
+uv run docqa ingest examples/docs && uv run docqa eval examples/eval_holdout.jsonl --retrieval-only
+```
+
+Output on a fresh clone:
+
+```
+Ingested 10 documents, 23 chunks; skipped: none
+cases: 35
+hit@3: 0.833 (20/24 answerable)
+unanswerable rejected: 11/11 (retrieval found nothing)
+```
+
+A "not found" answer is also produced without a key, because the model is never called for it:
+`uv run docqa ask "What is the airspeed of an unladen swallow?"` prints `Not found in the provided documents.`
+
+## Measured results
+
+Retrieval and evidence-gate results on the sample documents (10 files, 23 passages), top 3 passages:
+
+| Question set | Questions (answerable / not) | hit@3 | Unanswerable stopped by the gate |
+|---|---|---|---|
+| Dev, `examples/eval.jsonl` (used to calibrate the gate) | 39 (31 / 8) | 0.968 (30/31) | 8/8 |
+| Holdout, `examples/eval_holdout.jsonl` (written before calibration, not used for tuning) | 35 (24 / 11) | 0.833 (20/24) | 11/11 |
+| Independent QA set (written by the QA reviewer after the threshold was set; not in this repository) | 47 (30 / 17) | 0.867 (26/30) | 13/17 (76%) |
+
+The first two rows are re-run with `uv run docqa eval <file> --retrieval-only` and need no key. The third row
+was measured during QA of v0.1.0. `hit@3` is the share of answerable questions with a passage from an expected
+file in the top 3. "Stopped by the gate" means retrieval returned nothing, so the answer was "not found" without
+a model call; the four that passed on the QA set (for example "What does the Gold support plan cost?") reach
+Claude, as in the recorded example above.
+
+Read these numbers for what they are: one small, purpose-written corpus, and an evidence gate that is a
+heuristic (see [How it works](#how-it-works)). They measure retrieval, not the quality of Claude's answers, and
+they say nothing about your documents until you run the same evaluation on them. Cost and latency have not been
+measured.
+
+## Why DocQA
+
+The main design choice: **"not found" is decided in code, before the model is called, not by asking the model
+in a prompt to admit it does not know.** If the best passage does not cover enough of the question, DocQA
+answers "Not found in the provided documents." and makes no API call at all. Questions that pass the gate are
+still answered only with citations, and `found` is `true` only if the answer carries at least one.
+
+| Often in RAG tutorials | In DocQA | Check it in |
+|---|---|---|
+| The prompt asks the model to say "I don't know" | An evidence gate in code returns "not found" before any model call | `src/docqa/retriever.py`, `tests/test_service.py::test_not_found_does_not_call_model`, `docs/adr/0007-evidence-gate-query-coverage.md` |
+| The model writes its sources into the answer text | Quotes come from the API's native citations (`cited_text`), mapped back to the file; no citation means `found: false` | `src/docqa/llm.py`, `tests/test_llm.py::test_answer_without_citations_is_not_found`, `tests/test_service.py::test_found_requires_citations` |
+| No evaluation, or tuned on the questions it is tested on | Retrieval eval that runs without a key, with a dev set and a separate holdout set | `examples/eval.jsonl`, `examples/eval_holdout.jsonl`, `src/docqa/eval.py` |
+| The chat UI inserts model output with `innerHTML` | One-file widget that uses `textContent` only, a hash-based Content-Security-Policy and no external requests | `src/docqa/static/index.html`, `tests/test_widget.py` |
+| Inputs and ingest paths are not limited | Per-message length limits (after stripping whitespace), a 256 KiB body limit, ingest restricted to one root, symlinks out of it skipped | `tests/test_chat.py`, `tests/test_api.py`, `tests/test_store_ingest.py` |
+| Container runs as root, CI uses movable tags, tests call the real API | Non-root Docker image, GitHub Actions pinned to commit SHAs, tests remove the key and block network access | `Dockerfile`, `tests/test_ci.py`, `tests/conftest.py` |
+
+How v0.1.0 was reviewed (two independent QA rounds, a security gate, and what was found and fixed) is in
+[`docs/QUALITY.md`](docs/QUALITY.md).
+
+## Adapt it to your documents
+
+1. **Index your files.** `uv run docqa ingest /path/to/your/docs` reads `.md`, `.txt` and PDFs with a text layer.
+   Re-running it skips unchanged files. Deleted files stay in the index until you delete the database file and
+   ingest again.
+2. **Write a small eval set and tune the gate on it.** Put 30 or more of your users' real questions in a JSONL
+   file (`{"question": "...", "expected_sources": ["file.md"], "answerable": true}`), including questions your
+   documents do not answer. Keep some aside as a holdout you do not tune on. Then compare thresholds:
+   ```bash
+   DOCQA_MIN_COVERAGE=0.4 uv run docqa eval my_eval.jsonl --retrieval-only
+   DOCQA_MIN_COVERAGE=0.6 uv run docqa eval my_eval.jsonl --retrieval-only
+   ```
+   Lower values answer more questions and let more unanswerable ones reach Claude; higher values do the
+   opposite. Check the chosen value on the holdout set before using it.
+3. **Embed the widget** on the same origin as the API, or put DocQA behind your domain with a reverse proxy
+   (see [Embedding the widget](#embedding-the-widget)). Cross-origin embedding is not supported in v0.1.
+4. **Know the retrieval limits.** BM25 matches words, not meaning, so synonyms are missed (see
+   [Known limitations](#known-limitations)). To go further, implement the `Retriever` protocol in
+   `src/docqa/retriever.py` (`search(query, k) -> list[Chunk]`) with a vector or hybrid search. The evidence
+   gate lives inside `FTS5Retriever`, so a new retriever needs its own evidence check and its own evaluation.
+5. **Deploy behind authentication.** The API has no authentication or rate limiting, and anyone who can reach it
+   can spend your API key and ingest folders under `DOCQA_INGEST_ROOT`. Put it behind a reverse proxy that
+   authenticates users, do not expose `POST /ingest` or the OpenAPI pages (`/docs`, `/redoc`, `/openapi.json`)
+   publicly, and point `DOCQA_INGEST_ROOT` at your documents only.
+
 ## Quick start (uv)
 
 Requirements: Python 3.12 and [uv](https://docs.astral.sh/uv/) (tested with uv 0.6.3).
@@ -280,4 +398,4 @@ MIT, see `LICENSE.md`.
 
 ## Support
 
-Built by Kaikeel.
+Built by Kaikeel. How this release was tested and reviewed: [`docs/QUALITY.md`](docs/QUALITY.md).
