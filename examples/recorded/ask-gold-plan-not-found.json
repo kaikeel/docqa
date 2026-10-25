@@ -1,0 +1,34 @@
+{
+  "provenance": "Recorded on 2026-10-26. NOT output of DocQA's Anthropic API path. The answer text and quotes were produced by Claude Opus through the Claude Code CLI (`claude -p`), using a local-only experimental answer backend that is not part of this repository. On that backend the model is asked to return its quotes as JSON, and a quote is kept only if it appears verbatim (ignoring whitespace differences) in the passage it names. The shipped path, docqa.llm.ClaudeAnswerModel, uses the Anthropic API's native citations instead, so wording and citation choice can differ. Everything else is DocQA's own code: ingest, BM25 retrieval, the evidence gate, chat follow-up handling, request validation and the response shape (requests were sent in-process to the FastAPI app). The CLI's `opus` alias resolved to claude-opus-4-8; DocQA's default model is claude-opus-5-5. The retrieval field was recomputed afterwards from the same index (retrieval is deterministic and needs no key).",
+  "note": "There is no Gold plan in the sample documents. 'gold' appears nowhere, but 'support', 'plan' and 'cost' do, so the evidence gate let the question through (coverage 0.55, threshold 0.5) and the model was called. It answered that the documents do not contain this, with no citations, so found is false. This is one of the 'looks answerable but is not' cases described under Known limitations; questions with less overlap are rejected by the gate without any model call.",
+  "model_calls": 1,
+  "models_reported_by_cli": [
+    "claude-haiku-4-5-20251001",
+    "claude-opus-4-8"
+  ],
+  "exchanges": [
+    {
+      "endpoint": "POST /ask",
+      "status": 200,
+      "request": {
+        "question": "What does the Gold support plan cost?"
+      },
+      "retrieval": {
+        "query": "What does the Gold support plan cost?",
+        "best_passage_coverage": 0.55,
+        "passages_sent_to_model": [
+          "support-plan-starter.md",
+          "support-plan-pro.txt",
+          "support-plan-pro.txt",
+          "delivery-process.md",
+          "release-checklist.pdf"
+        ]
+      },
+      "response": {
+        "answer": "Not found in the provided documents.",
+        "citations": [],
+        "found": false
+      }
+    }
+  ]
+}

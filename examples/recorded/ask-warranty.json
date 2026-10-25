@@ -1,0 +1,43 @@
+{
+  "provenance": "Recorded on 2026-10-26. NOT output of DocQA's Anthropic API path. The answer text and quotes were produced by Claude Opus through the Claude Code CLI (`claude -p`), using a local-only experimental answer backend that is not part of this repository. On that backend the model is asked to return its quotes as JSON, and a quote is kept only if it appears verbatim (ignoring whitespace differences) in the passage it names. The shipped path, docqa.llm.ClaudeAnswerModel, uses the Anthropic API's native citations instead, so wording and citation choice can differ. Everything else is DocQA's own code: ingest, BM25 retrieval, the evidence gate, chat follow-up handling, request validation and the response shape (requests were sent in-process to the FastAPI app). The CLI's `opus` alias resolved to claude-opus-4-8; DocQA's default model is claude-opus-5-5. The retrieval field was recomputed afterwards from the same index (retrieval is deterministic and needs no key).",
+  "note": "A short question that the evidence gate passes (the best passage covers all of it).",
+  "model_calls": 1,
+  "models_reported_by_cli": [
+    "claude-haiku-4-5-20251001",
+    "claude-opus-4-8"
+  ],
+  "exchanges": [
+    {
+      "endpoint": "POST /ask",
+      "status": 200,
+      "request": {
+        "question": "What is the warranty?"
+      },
+      "retrieval": {
+        "query": "What is the warranty?",
+        "best_passage_coverage": 1.0,
+        "passages_sent_to_model": [
+          "warranty-policy.md",
+          "delivery-process.md",
+          "warranty-policy.md",
+          "estimates-and-change-requests.md",
+          "support-plan-starter.md"
+        ]
+      },
+      "response": {
+        "answer": "Every fixed-price project includes a 7-day warranty, during which defects where the delivered software does not behave as described in the agreed acceptance criteria are fixed free of charge. The period starts when the client confirms receipt of the handover package and ends seven calendar days later.",
+        "citations": [
+          {
+            "source": "warranty-policy.md",
+            "quote": "Every fixed-price project includes a **7-day warranty**."
+          },
+          {
+            "source": "warranty-policy.md",
+            "quote": "During the warranty period we fix, free of charge, any defect where the delivered software\ndoes not behave as described in the agreed acceptance criteria."
+          }
+        ],
+        "found": true
+      }
+    }
+  ]
+}
