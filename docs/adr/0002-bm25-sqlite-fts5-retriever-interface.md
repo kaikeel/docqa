@@ -7,7 +7,7 @@ DocQA v0.1 is an internal portfolio project with an appetite of at most one AI w
 retrieval eval that runs without any API key (hit@3 ≥ 0.8 on the sample set), AC5 requires all tests to run
 offline, and AC6 requires a stranger to reach a first answer in ≤ 10 minutes. Vector search would need either
 an embeddings API (key + network in eval/tests) or a local embedding model (large download, slow Docker build),
-plus a vector store (pgvector/Qdrant/Chroma = extra service or dependency). `PROJECT.md` explicitly lists vector
+plus a vector store (pgvector/Qdrant/Chroma = extra service or dependency). The project brief explicitly lists vector
 DB / embeddings as out of scope.
 
 AC2 also needs a deterministic "no evidence" signal so we can answer "not found" without calling the LLM.

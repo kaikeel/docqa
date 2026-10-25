@@ -3,7 +3,7 @@
 Date: 2026-10-25 · Status: Accepted · Author: sol-architect
 
 ## Context
-The scope was extended (PROJECT.md, AC8) with `POST /chat`: multi-turn chat for a website support widget,
+The scope was extended (acceptance criterion AC8) with `POST /chat`: multi-turn chat for a website support widget,
 **without server-side sessions**. We have to decide what the client sends, how it is validated, and how the
 conversation is passed to Claude together with the cited `document` blocks (ADR 0003).
 

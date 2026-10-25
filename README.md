@@ -270,7 +270,7 @@ removes `ANTHROPIC_API_KEY` and blocks network connections for the whole run.
 src/docqa/      cli.py, api.py, service.py, chat.py, retriever.py, llm.py, ingest.py, store.py, eval.py
 src/docqa/static/index.html   sample chat widget
 examples/       sample documents and eval set
-docs/           SPEC.md and architecture decision records (docs/adr/)
+docs/adr/       architecture decision records
 tests/          pytest suite (offline)
 ```
 
