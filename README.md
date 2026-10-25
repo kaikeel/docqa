@@ -34,7 +34,7 @@ API path that DocQA ships; retrieval, the follow-up handling and the widget are 
 | [`ask-gold-plan-not-found.json`](examples/recorded/ask-gold-plan-not-found.json) | "What does the Gold support plan cost?" There is no Gold plan. This question passes the evidence gate (coverage 0.55, threshold 0.5), so the model is called; it answers "Not found in the provided documents." with no citations and `found: false`. |
 | [`chat-support-plans.json`](examples/recorded/chat-support-plans.json) | Two `/chat` turns, as in the screenshot: "What support plans do you have?" (Starter and Pro, one quote each), then "And what about the other one?" (the Pro plan, eight quotes from `support-plan-pro.txt`). |
 
-Where these come from, stated plainly: they were recorded with **Claude Opus through the Claude Code CLI**
+Where these come from, stated plainly: they were recorded with **Claude Opus 4.8 through the Claude Code CLI**
 (`claude -p`), using a **local-only experimental backend that is not part of this repository**. They are not
 output of DocQA's Anthropic API path. On that backend the model is asked to return its quotes as JSON, and a
 quote is kept only if it appears verbatim in the passage it names. DocQA itself (`docqa.llm.ClaudeAnswerModel`)
@@ -97,7 +97,7 @@ still answered only with citations, and `found` is `true` only if the answer car
 | Inputs and ingest paths are not limited | Per-message length limits (after stripping whitespace), a 256 KiB body limit, ingest restricted to one root, symlinks out of it skipped | `tests/test_chat.py`, `tests/test_api.py`, `tests/test_store_ingest.py` |
 | Container runs as root, CI uses movable tags, tests call the real API | Non-root Docker image, GitHub Actions pinned to commit SHAs, tests remove the key and block network access | `Dockerfile`, `tests/test_ci.py`, `tests/conftest.py` |
 
-How v0.1.0 was reviewed (two independent QA rounds, a security gate, and what was found and fixed) is in
+How v0.1.0 was reviewed (two QA rounds and two security reviews by AI agents separate from development, with human sign-off, and what was found and fixed) is in
 [`docs/QUALITY.md`](docs/QUALITY.md).
 
 ## Adapt it to your documents

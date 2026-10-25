@@ -6,6 +6,11 @@ QA and security reports for this release, limited to technical content.
 
 ## Process
 
+Kaikeel builds with AI agents and a human signs off at every gate. The QA and security reviews below were
+run by separate AI agents that did not write the code and could only report, not change it; a human approved
+the results.
+
+
 1. **QA round 1: fail.** A QA review, run separately from development, went through the acceptance criteria on
    a clean clone (uv and Docker), the API and CLI edge cases, and the widget in headless Chrome. Result: 5 major
    and 11 minor defects.
